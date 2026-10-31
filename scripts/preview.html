@@ -1,0 +1,41 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Above the Clouds — phone preview</title>
+<style>
+  html, body { margin: 0; padding: 0; background: #000; }
+  iframe { display: block; width: 430px; height: 1750px; border: 0; }
+</style>
+</head>
+<body>
+<iframe id="app"></iframe>
+<script>
+  // Dev-only harness: renders the app in a 430px-wide iframe so screenshots
+  // match an iPhone layout. ?sheet=settings|location|detail opens a sheet;
+  // ?h=932 sets the iframe height; ?src=... loads a different URL.
+  const params = new URLSearchParams(location.search);
+  const src = params.get("src") || "/?location=boccardo-peak";
+  const sheet = params.get("sheet");
+  const width = Number(params.get("w") || 430);
+  const height = Number(params.get("h") || 1750);
+  const frame = document.getElementById("app");
+  frame.style.width = width + "px";
+  frame.style.height = height + "px";
+  frame.src = src;
+  frame.addEventListener("load", () => {
+    if (!sheet) return;
+    setTimeout(() => {
+      const doc = frame.contentDocument;
+      if (!doc) return;
+      if (sheet === "settings") doc.getElementById("settingsBtn").click();
+      if (sheet === "location") doc.getElementById("locationBtn").click();
+      if (sheet === "detail") {
+        const bar = doc.querySelector(".tl-hour:not(.is-now)") || doc.querySelector(".tl-hour");
+        if (bar) bar.click();
+      }
+    }, 2600);
+  });
+</script>
+</body>
+</html>

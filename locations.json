@@ -1,0 +1,306 @@
+[
+  {
+    "id": "boccardo-peak",
+    "name": "Boccardo Peak",
+    "region": "San Jose & South Bay",
+    "peak": { "lat": 37.4056127, "lon": -121.806776, "elevationFt": 1896 },
+    "valley": { "lat": 37.3382, "lon": -121.8863, "name": "San Jose", "elevationFt": 90 },
+    "notes": "Sierra Vista Open Space Preserve"
+  },
+  {
+    "id": "mission-peak",
+    "name": "Mission Peak",
+    "region": "San Jose & South Bay",
+    "peak": { "lat": 37.5125, "lon": -121.8727, "elevationFt": 2517 },
+    "valley": { "lat": 37.5485, "lon": -121.9886, "name": "Fremont", "elevationFt": 56 },
+    "notes": "Stanford Avenue or Ohlone College trailheads"
+  },
+  {
+    "id": "mount-hamilton",
+    "name": "Mount Hamilton",
+    "region": "San Jose & South Bay",
+    "peak": { "lat": 37.3414, "lon": -121.6431, "elevationFt": 4265 },
+    "valley": { "lat": 37.3382, "lon": -121.8863, "name": "San Jose", "elevationFt": 90 },
+    "notes": "Lick Observatory summit"
+  },
+  {
+    "id": "mount-umunhum",
+    "name": "Mount Umunhum",
+    "region": "San Jose & South Bay",
+    "peak": { "lat": 37.1605, "lon": -121.8986, "elevationFt": 3486 },
+    "valley": { "lat": 37.2266, "lon": -121.9747, "name": "Los Gatos", "elevationFt": 350 },
+    "notes": "Sierra Azul Open Space Preserve"
+  },
+  {
+    "id": "loma-prieta",
+    "name": "Loma Prieta",
+    "region": "San Jose & South Bay",
+    "peak": { "lat": 37.1458, "lon": -121.8547, "elevationFt": 3786 },
+    "valley": { "lat": 37.2266, "lon": -121.9747, "name": "Los Gatos", "elevationFt": 350 },
+    "notes": "Santa Cruz Mountains high point"
+  },
+  {
+    "id": "el-sombroso",
+    "name": "El Sombroso",
+    "region": "San Jose & South Bay",
+    "peak": { "lat": 37.1667, "lon": -121.9333, "elevationFt": 2999 },
+    "valley": { "lat": 37.2266, "lon": -121.9747, "name": "Los Gatos", "elevationFt": 350 },
+    "notes": "Sierra Azul / Lexington Reservoir side"
+  },
+  {
+    "id": "mount-madonna",
+    "name": "Mount Madonna",
+    "region": "San Jose & South Bay",
+    "peak": { "lat": 37.0086, "lon": -121.7047, "elevationFt": 1897 },
+    "valley": { "lat": 37.0058, "lon": -121.5683, "name": "Gilroy", "elevationFt": 200 },
+    "notes": "Mount Madonna County Park"
+  },
+  {
+    "id": "fremont-peak",
+    "name": "Fremont Peak",
+    "region": "San Jose & South Bay",
+    "peak": { "lat": 36.7572, "lon": -121.5044, "elevationFt": 3169 },
+    "valley": { "lat": 36.8455, "lon": -121.5374, "name": "San Juan Bautista", "elevationFt": 200 },
+    "notes": "Fremont Peak State Park"
+  },
+  {
+    "id": "rose-peak",
+    "name": "Rose Peak",
+    "region": "East Bay",
+    "peak": { "lat": 37.5144, "lon": -121.7206, "elevationFt": 3817 },
+    "valley": { "lat": 37.6819, "lon": -121.7680, "name": "Livermore", "elevationFt": 500 },
+    "notes": "Ohlone Wilderness Trail"
+  },
+  {
+    "id": "mount-sizer",
+    "name": "Mount Sizer",
+    "region": "San Jose & South Bay",
+    "peak": { "lat": 37.2136, "lon": -121.5136, "elevationFt": 3216 },
+    "valley": { "lat": 37.1305, "lon": -121.6544, "name": "Morgan Hill", "elevationFt": 350 },
+    "notes": "Henry W. Coe State Park"
+  },
+  {
+    "id": "copernicus-peak",
+    "name": "Copernicus Peak",
+    "region": "San Jose & South Bay",
+    "peak": { "lat": 37.3467, "lon": -121.6297, "elevationFt": 4360 },
+    "valley": { "lat": 37.3382, "lon": -121.8863, "name": "San Jose", "elevationFt": 90 },
+    "notes": "Near Lick Observatory"
+  },
+  {
+    "id": "monument-peak",
+    "name": "Monument Peak",
+    "region": "East Bay",
+    "peak": { "lat": 37.4833, "lon": -121.8667, "elevationFt": 2594 },
+    "valley": { "lat": 37.5485, "lon": -121.9886, "name": "Fremont", "elevationFt": 56 },
+    "notes": "Ohlone College / Mission Peak Regional Preserve"
+  },
+  {
+    "id": "black-mountain",
+    "name": "Black Mountain",
+    "region": "Peninsula",
+    "peak": { "lat": 37.3167, "lon": -122.1333, "elevationFt": 2800 },
+    "valley": { "lat": 37.3230, "lon": -122.0322, "name": "Cupertino", "elevationFt": 230 },
+    "notes": "Monte Bello Open Space Preserve"
+  },
+  {
+    "id": "windy-hill",
+    "name": "Windy Hill",
+    "region": "Peninsula",
+    "peak": { "lat": 37.3667, "lon": -122.2333, "elevationFt": 1905 },
+    "valley": { "lat": 37.3841, "lon": -122.2352, "name": "Portola Valley", "elevationFt": 500 },
+    "notes": "Windy Hill Open Space Preserve"
+  },
+  {
+    "id": "russian-ridge",
+    "name": "Russian Ridge",
+    "region": "Peninsula",
+    "peak": { "lat": 37.3167, "lon": -122.2000, "elevationFt": 2500 },
+    "valley": { "lat": 37.4419, "lon": -122.1430, "name": "Palo Alto", "elevationFt": 30 },
+    "notes": "Russian Ridge Open Space Preserve"
+  },
+  {
+    "id": "mount-bielawski",
+    "name": "Mount Bielawski",
+    "region": "Peninsula",
+    "peak": { "lat": 37.2167, "lon": -122.1000, "elevationFt": 3231 },
+    "valley": { "lat": 37.2638, "lon": -122.0230, "name": "Saratoga", "elevationFt": 400 },
+    "notes": "Santa Cruz Mountains / Castle Rock area"
+  },
+  {
+    "id": "castle-rock",
+    "name": "Castle Rock",
+    "region": "Peninsula",
+    "peak": { "lat": 37.2333, "lon": -122.1167, "elevationFt": 3214 },
+    "valley": { "lat": 37.2638, "lon": -122.0230, "name": "Saratoga", "elevationFt": 400 },
+    "notes": "Castle Rock State Park"
+  },
+  {
+    "id": "san-bruno-mountain",
+    "name": "San Bruno Mountain",
+    "region": "Peninsula",
+    "peak": { "lat": 37.6875, "lon": -122.4358, "elevationFt": 1319 },
+    "valley": { "lat": 37.6879, "lon": -122.4702, "name": "Daly City", "elevationFt": 100 },
+    "notes": "San Bruno Mountain State Park"
+  },
+  {
+    "id": "montara-mountain",
+    "name": "Montara Mountain",
+    "region": "Peninsula",
+    "peak": { "lat": 37.5667, "lon": -122.4833, "elevationFt": 1898 },
+    "valley": { "lat": 37.6138, "lon": -122.4869, "name": "Pacifica", "elevationFt": 50 },
+    "notes": "McNee Ranch State Park"
+  },
+  {
+    "id": "sweeney-ridge",
+    "name": "Sweeney Ridge",
+    "region": "Peninsula",
+    "peak": { "lat": 37.6167, "lon": -122.4667, "elevationFt": 1200 },
+    "valley": { "lat": 37.6138, "lon": -122.4869, "name": "Pacifica", "elevationFt": 50 },
+    "notes": "Golden Gate National Recreation Area"
+  },
+  {
+    "id": "mount-tamalpais",
+    "name": "Mount Tamalpais (East Peak)",
+    "region": "Marin",
+    "peak": { "lat": 37.9275, "lon": -122.5775, "elevationFt": 2571 },
+    "valley": { "lat": 37.9060, "lon": -122.5450, "name": "Mill Valley", "elevationFt": 80 },
+    "notes": "Mount Tamalpais State Park"
+  },
+  {
+    "id": "mount-diablo",
+    "name": "Mount Diablo",
+    "region": "East Bay",
+    "peak": { "lat": 37.8816, "lon": -121.9142, "elevationFt": 3849 },
+    "valley": { "lat": 37.8216, "lon": -121.9999, "name": "Danville", "elevationFt": 350 },
+    "notes": "Mount Diablo State Park"
+  },
+  {
+    "id": "north-peak-diablo",
+    "name": "North Peak (Diablo)",
+    "region": "East Bay",
+    "peak": { "lat": 37.8933, "lon": -121.9044, "elevationFt": 3557 },
+    "valley": { "lat": 37.8216, "lon": -121.9999, "name": "Danville", "elevationFt": 350 },
+    "notes": "Mount Diablo State Park"
+  },
+  {
+    "id": "eagle-peak-diablo",
+    "name": "Eagle Peak (Diablo)",
+    "region": "East Bay",
+    "peak": { "lat": 37.8667, "lon": -121.9333, "elevationFt": 2369 },
+    "valley": { "lat": 37.8216, "lon": -121.9999, "name": "Danville", "elevationFt": 350 },
+    "notes": "Mount Diablo State Park"
+  },
+  {
+    "id": "mount-wittenberg",
+    "name": "Mount Wittenberg",
+    "region": "Point Reyes",
+    "peak": { "lat": 38.0875, "lon": -122.8264, "elevationFt": 1407 },
+    "valley": { "lat": 38.0691, "lon": -122.8069, "name": "Point Reyes Station", "elevationFt": 50 },
+    "notes": "Point Reyes National Seashore"
+  },
+  {
+    "id": "mount-vision",
+    "name": "Mount Vision",
+    "region": "Point Reyes",
+    "peak": { "lat": 38.1000, "lon": -122.8667, "elevationFt": 1282 },
+    "valley": { "lat": 38.0691, "lon": -122.8069, "name": "Point Reyes Station", "elevationFt": 50 },
+    "notes": "Point Reyes National Seashore"
+  },
+  {
+    "id": "point-reyes-hill",
+    "name": "Point Reyes Hill",
+    "region": "Point Reyes",
+    "peak": { "lat": 38.0667, "lon": -122.8667, "elevationFt": 1336 },
+    "valley": { "lat": 38.0691, "lon": -122.8069, "name": "Point Reyes Station", "elevationFt": 50 },
+    "notes": "Inverness Ridge"
+  },
+  {
+    "id": "mount-burdell",
+    "name": "Mount Burdell",
+    "region": "Marin",
+    "peak": { "lat": 38.1167, "lon": -122.6000, "elevationFt": 1558 },
+    "valley": { "lat": 38.1074, "lon": -122.5697, "name": "Novato", "elevationFt": 30 },
+    "notes": "Mount Burdell Open Space Preserve"
+  },
+  {
+    "id": "big-rock-ridge",
+    "name": "Big Rock Ridge",
+    "region": "Marin",
+    "peak": { "lat": 38.0500, "lon": -122.6000, "elevationFt": 1893 },
+    "valley": { "lat": 38.1074, "lon": -122.5697, "name": "Novato", "elevationFt": 30 },
+    "notes": "Marin County open space"
+  },
+  {
+    "id": "bolinas-ridge",
+    "name": "Bolinas Ridge",
+    "region": "Marin",
+    "peak": { "lat": 37.9500, "lon": -122.7000, "elevationFt": 1800 },
+    "valley": { "lat": 37.9091, "lon": -122.6861, "name": "Bolinas", "elevationFt": 50 },
+    "notes": "Point Reyes National Seashore / Bolinas Ridge Trail"
+  },
+  {
+    "id": "mount-barnabe",
+    "name": "Mount Barnabe",
+    "region": "Marin",
+    "peak": { "lat": 38.0333, "lon": -122.7167, "elevationFt": 1466 },
+    "valley": { "lat": 38.0167, "lon": -122.7000, "name": "Lagunitas", "elevationFt": 200 },
+    "notes": "Samuel P. Taylor State Park area"
+  },
+  {
+    "id": "las-trampas-peak",
+    "name": "Las Trampas Peak",
+    "region": "East Bay",
+    "peak": { "lat": 37.8167, "lon": -122.0500, "elevationFt": 1827 },
+    "valley": { "lat": 37.8216, "lon": -121.9999, "name": "Danville", "elevationFt": 350 },
+    "notes": "Las Trampas Regional Wilderness"
+  },
+  {
+    "id": "brushy-peak",
+    "name": "Brushy Peak",
+    "region": "East Bay",
+    "peak": { "lat": 37.7667, "lon": -121.7000, "elevationFt": 1702 },
+    "valley": { "lat": 37.6819, "lon": -121.7680, "name": "Livermore", "elevationFt": 500 },
+    "notes": "Brushy Peak Regional Preserve"
+  },
+  {
+    "id": "pleasanton-ridge",
+    "name": "Pleasanton Ridge",
+    "region": "East Bay",
+    "peak": { "lat": 37.6333, "lon": -121.9333, "elevationFt": 1600 },
+    "valley": { "lat": 37.6624, "lon": -121.8747, "name": "Pleasanton", "elevationFt": 350 },
+    "notes": "Pleasanton Ridge Regional Park"
+  },
+  {
+    "id": "sunol-peak",
+    "name": "Sunol Peak",
+    "region": "East Bay",
+    "peak": { "lat": 37.5000, "lon": -121.8333, "elevationFt": 2200 },
+    "valley": { "lat": 37.5944, "lon": -121.8886, "name": "Sunol", "elevationFt": 200 },
+    "notes": "Sunol Regional Wilderness"
+  },
+  {
+    "id": "mount-davidson",
+    "name": "Mount Davidson",
+    "region": "San Francisco",
+    "peak": { "lat": 37.7383, "lon": -122.4550, "elevationFt": 928 },
+    "valley": { "lat": 37.7749, "lon": -122.4194, "name": "San Francisco", "elevationFt": 50 },
+    "notes": "Mount Davidson Park"
+  },
+  {
+    "id": "twin-peaks",
+    "name": "Twin Peaks",
+    "region": "San Francisco",
+    "peak": { "lat": 37.7544, "lon": -122.4477, "elevationFt": 922 },
+    "valley": { "lat": 37.7749, "lon": -122.4194, "name": "San Francisco", "elevationFt": 50 },
+    "notes": "Twin Peaks Open Space"
+  },
+  {
+    "id": "mount-sutro",
+    "name": "Mount Sutro",
+    "region": "San Francisco",
+    "peak": { "lat": 37.7583, "lon": -122.4575, "elevationFt": 909 },
+    "valley": { "lat": 37.7749, "lon": -122.4194, "name": "San Francisco", "elevationFt": 50 },
+    "notes": "Mount Sutro Open Space Reserve"
+  }
+]

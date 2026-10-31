@@ -1,0 +1,21 @@
+{
+  "name": "above-the-clouds",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Glanceable marine-layer inversion forecasts for Bay Area peaks.",
+  "scripts": {
+    "build": "node scripts/build-site.mjs",
+    "icons": "node scripts/build-icons.mjs",
+    "widget": "node scripts/build-widget.mjs",
+    "serve": "node scripts/build-site.mjs && node scripts/serve.mjs",
+    "test": "node scripts/test-conditions.mjs && node scripts/test-widget.mjs",
+    "test:conditions": "node scripts/test-conditions.mjs",
+    "test:widget": "node scripts/test-widget.mjs",
+    "notify": "node scripts/check-and-notify.mjs",
+    "notify:dry": "node scripts/check-and-notify.mjs --dry-run",
+    "notify:test": "node scripts/check-and-notify.mjs --test"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

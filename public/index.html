@@ -1,0 +1,406 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#070b18">
+  <meta name="color-scheme" content="dark">
+  <meta name="description" content="A glanceable forecast for hiking above the Bay Area marine layer.">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Clouds">
+  <meta name="format-detection" content="telephone=no">
+  <title>Above the Clouds</title>
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" href="./icons/favicon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <svg class="sprite" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg">
+    <symbol id="i-logo" viewBox="0 0 32 32">
+      <path d="M4 24.5 12.2 12l5.1 7.3L20.8 15 28 24.5H4Z" fill="currentColor" opacity=".92"/>
+      <path d="M9 10.8c0-2.1 1.7-3.8 3.8-3.8 1.5 0 2.8.9 3.4 2.1.5-.2 1-.3 1.6-.3 2.1 0 3.8 1.7 3.8 3.8 0 1.4-.8 2.7-1.9 3.3H10.9A3.8 3.8 0 0 1 9 10.8Z" fill="currentColor" opacity=".55"/>
+    </symbol>
+    <symbol id="i-sun" viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="4.2"/>
+      <path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.3 5.3l1.6 1.6M17.1 17.1l1.6 1.6M18.7 5.3l-1.6 1.6M6.9 17.1l-1.6 1.6"/>
+    </symbol>
+    <symbol id="i-sunrise" viewBox="0 0 24 24">
+      <path d="M3 18h18M5.5 15.5a6.5 6.5 0 0 1 13 0M12 3v4.5M4.2 7.2l2.1 2.1M19.8 7.2l-2.1 2.1M2 21h20"/>
+    </symbol>
+    <symbol id="i-cloud" viewBox="0 0 24 24">
+      <path d="M7.2 18.5h9.6a4.2 4.2 0 0 0 .5-8.4 6 6 0 0 0-11.6 1.6A3.5 3.5 0 0 0 7.2 18.5Z"/>
+    </symbol>
+    <symbol id="i-cloud-sun" viewBox="0 0 24 24">
+      <path d="M8.2 18.6h8.2a3.7 3.7 0 0 0 .4-7.4 5.3 5.3 0 0 0-10.2 1.4 3.1 3.1 0 0 0 1.6 6Z"/>
+      <path d="M18.2 4.2v2.1M21.9 8h-2.1M20.8 5.5l-1.4 1.4M17.2 11.8l1.5 1.4"/>
+    </symbol>
+    <symbol id="i-fog" viewBox="0 0 24 24">
+      <path d="M5 9.6a5 5 0 0 1 9.7-1.5 3.8 3.8 0 0 1 1.2 7.4H6.4A3.2 3.2 0 0 1 5 9.6Z"/>
+      <path d="M4 17.3h16M6 20.5h12M8 14.2h8"/>
+    </symbol>
+    <symbol id="i-wind" viewBox="0 0 24 24">
+      <path d="M3 8.5h11.5a3 3 0 1 0-3-3M3 12.5h16.5a2.8 2.8 0 1 1-2.8 2.8M3 16.5h8"/>
+    </symbol>
+    <symbol id="i-eye" viewBox="0 0 24 24">
+      <path d="M2.5 12S6 5.8 12 5.8 21.5 12 21.5 12 18 18.2 12 18.2 2.5 12 2.5 12Z"/>
+      <circle cx="12" cy="12" r="3"/>
+    </symbol>
+    <symbol id="i-thermometer" viewBox="0 0 24 24">
+      <path d="M10 13.8V5.2a2 2 0 1 1 4 0v8.6a5 5 0 1 1-4 0Z"/>
+      <path d="M12 9v6.2"/>
+    </symbol>
+    <symbol id="i-bell" viewBox="0 0 24 24">
+      <path d="M6.5 10.2a5.5 5.5 0 0 1 11 0c0 6 2.2 6.2 2.2 7.6H4.3c0-1.4 2.2-1.6 2.2-7.6Z"/>
+      <path d="M9.6 20a2.6 2.6 0 0 0 4.8 0"/>
+    </symbol>
+    <symbol id="i-gear" viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="3.1"/>
+      <path d="M19.4 15.1a1.7 1.7 0 0 0 .3 1.9l.1.1-2 2-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5v.2h-2.8v-.2a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.9.3l-.1.1-2-2 .1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H5v-2.8h.2a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1 2-2 .1.1a1.7 1.7 0 0 0 1.9.3 1.7 1.7 0 0 0 1-1.5V5h2.8v.2a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1 2 2-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.5 1h.2v2.8h-.2a1.7 1.7 0 0 0-1.5 1Z"/>
+    </symbol>
+    <symbol id="i-refresh" viewBox="0 0 24 24">
+      <path d="M20 11.5a8 8 0 0 0-14.6-4L3 10.5M3 5.5v5h5M4 12.5a8 8 0 0 0 14.6 4l2.4-3M21 18.5v-5h-5"/>
+    </symbol>
+    <symbol id="i-chevron-down" viewBox="0 0 24 24">
+      <path d="m6 9.5 6 6 6-6"/>
+    </symbol>
+    <symbol id="i-chevron-right" viewBox="0 0 24 24">
+      <path d="m9.5 6 6 6-6 6"/>
+    </symbol>
+    <symbol id="i-search" viewBox="0 0 24 24">
+      <circle cx="10.8" cy="10.8" r="6.5"/>
+      <path d="m15.6 15.6 4.4 4.4"/>
+    </symbol>
+    <symbol id="i-pin" viewBox="0 0 24 24">
+      <path d="M19 10.2c0 5.4-7 11-7 11s-7-5.6-7-11a7 7 0 1 1 14 0Z"/>
+      <circle cx="12" cy="10.2" r="2.4"/>
+    </symbol>
+    <symbol id="i-check" viewBox="0 0 24 24">
+      <path d="m5 12.5 4.2 4.2L19 7"/>
+    </symbol>
+    <symbol id="i-share" viewBox="0 0 24 24">
+      <path d="M12 15.5V3.8M8.2 7.6 12 3.8l3.8 3.8M5 12.5v6.2a1.5 1.5 0 0 0 1.5 1.5h11a1.5 1.5 0 0 0 1.5-1.5v-6.2"/>
+    </symbol>
+    <symbol id="i-copy" viewBox="0 0 24 24">
+      <rect x="8.5" y="8.5" width="11" height="11" rx="2"/>
+      <path d="M15.5 5.5v-1a1.5 1.5 0 0 0-1.5-1.5H5.5A1.5 1.5 0 0 0 4 4.5v8.5A1.5 1.5 0 0 0 5.5 14.5h1"/>
+    </symbol>
+    <symbol id="i-close" viewBox="0 0 24 24">
+      <path d="m6 6 12 12M18 6 6 18"/>
+    </symbol>
+    <symbol id="i-info" viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="9"/>
+      <path d="M12 10.5v5.5M12 7.5v.2"/>
+    </symbol>
+    <symbol id="i-sparkle" viewBox="0 0 24 24">
+      <path d="M12 3.5 13.8 9l5.5 1.8-5.5 1.8L12 18l-1.8-5.4L4.7 10.8 10.2 9 12 3.5Z"/>
+      <path d="M19 16.5v3M17.5 18h3"/>
+    </symbol>
+    <symbol id="i-arrow-up" viewBox="0 0 24 24">
+      <path d="M12 19V5M6.5 10.5 12 5l5.5 5.5"/>
+    </symbol>
+    <symbol id="i-mountain" viewBox="0 0 24 24">
+      <path d="m2.5 19 6.4-10 4 6.2 2.8-4.1 5.8 7.9H2.5Z"/>
+    </symbol>
+  </svg>
+
+  <div class="ambient" aria-hidden="true">
+    <div class="ambient-glow"></div>
+    <div class="ambient-stars"></div>
+    <div class="ambient-cloud ambient-cloud--one"></div>
+    <div class="ambient-cloud ambient-cloud--two"></div>
+  </div>
+
+  <div class="app">
+    <header class="topbar">
+      <a class="brand" href="./" aria-label="Above the Clouds home">
+        <span class="brand-mark"><svg><use href="#i-logo"></use></svg></span>
+        <span class="brand-text">Above the Clouds</span>
+      </a>
+      <div class="top-actions">
+        <button class="icon-btn" id="refreshBtn" type="button" aria-label="Refresh forecast">
+          <svg><use href="#i-refresh"></use></svg>
+        </button>
+        <button class="icon-btn" id="settingsBtn" type="button" aria-label="Settings">
+          <svg><use href="#i-gear"></use></svg>
+        </button>
+      </div>
+    </header>
+
+    <main class="main">
+      <button class="location-pill" id="locationBtn" type="button" aria-haspopup="dialog" aria-controls="locationSheet">
+        <span class="location-pin"><svg><use href="#i-pin"></use></svg></span>
+        <span class="location-copy">
+          <strong id="locationName">Boccardo Peak</strong>
+          <span id="locationMeta">1,896 ft · San Jose</span>
+        </span>
+        <span class="location-chevron"><svg><use href="#i-chevron-down"></use></svg></span>
+      </button>
+
+      <section class="hero" id="hero" data-tone="no" aria-live="polite">
+        <div class="hero-glow" aria-hidden="true"></div>
+        <div class="hero-sun" aria-hidden="true"></div>
+        <div class="hero-clouds" aria-hidden="true">
+          <span></span><span></span><span></span><span></span>
+        </div>
+        <div class="hero-content">
+          <div class="hero-eyebrow">
+            <span class="live-dot" id="liveDot"></span>
+            <span id="heroEyebrow">Reading the sky</span>
+          </div>
+          <div class="hero-word" id="heroWord">—</div>
+          <h1 class="hero-title" id="heroTitle">Checking the marine layer…</h1>
+          <p class="hero-copy" id="heroCopy">Comparing the summit with the valley and the sky above.</p>
+          <div class="hero-stats" id="heroStats"></div>
+        </div>
+        <svg class="hero-ridge" viewBox="0 0 800 180" preserveAspectRatio="none" aria-hidden="true">
+          <path d="M0 145 92 102l54 22 92-58 65 46 55-26 78 49 70-60 65 44 64-25 95 54 70-36v68H0Z" fill="rgba(6,10,22,.38)"/>
+          <path d="M0 162 105 126l70 20 80-38 85 46 74-30 77 32 84-44 80 38 75-22 70 28v24H0Z" fill="rgba(5,8,18,.82)"/>
+        </svg>
+      </section>
+
+      <section class="card window-card" id="windowCard" aria-live="polite">
+        <div class="window-icon" id="windowIcon">
+          <svg><use href="#i-sunrise"></use></svg>
+        </div>
+        <div class="window-copy">
+          <span class="eyebrow" id="windowEyebrow">Next good window</span>
+          <strong id="windowTitle">Checking the forecast…</strong>
+          <span id="windowMeta">—</span>
+        </div>
+        <button class="icon-btn window-action" id="alertBtn" type="button" aria-label="Set up alerts">
+          <svg><use href="#i-bell"></use></svg>
+        </button>
+      </section>
+
+      <section class="card timeline-card">
+        <div class="card-head">
+          <div>
+            <span class="eyebrow">The next 24 hours</span>
+            <h2>Hour by hour</h2>
+          </div>
+          <div class="timeline-meta">
+            <span id="sunriseLabel">Sunrise —</span>
+            <button class="icon-btn icon-btn--small" id="timelineRefreshBtn" type="button" aria-label="Refresh forecast">
+              <svg><use href="#i-refresh"></use></svg>
+            </button>
+          </div>
+        </div>
+        <div class="timeline-scroll" id="timeline" role="list" aria-label="Hourly cloud inversion score"></div>
+        <div class="legend" aria-hidden="true">
+          <span><i class="legend-dot legend-dot--good"></i>Go</span>
+          <span><i class="legend-dot legend-dot--maybe"></i>Maybe</span>
+          <span><i class="legend-dot legend-dot--no"></i>No</span>
+          <span class="legend-hint">Tap a bar for details</span>
+        </div>
+      </section>
+
+      <section class="why-section">
+        <div class="section-head">
+          <div>
+            <span class="eyebrow">The ingredients</span>
+            <h2>Why this score</h2>
+          </div>
+          <span class="section-note" id="scoreNote">—</span>
+        </div>
+        <div class="why-grid" id="whyGrid"></div>
+      </section>
+
+      <section class="card outlook-card">
+        <div class="card-head">
+          <div>
+            <span class="eyebrow">Looking ahead</span>
+            <h2>3-day outlook</h2>
+          </div>
+        </div>
+        <div class="outlook-list" id="outlook"></div>
+      </section>
+
+      <section class="card explainer-card">
+        <details>
+          <summary>
+            <span class="explainer-icon"><svg><use href="#i-sparkle"></use></svg></span>
+            <span>
+              <strong>What am I looking for?</strong>
+              <small>A low deck, clear sky above, calm air.</small>
+            </span>
+            <svg class="summary-chevron"><use href="#i-chevron-down"></use></svg>
+          </summary>
+          <div class="explainer-body">
+            <p>A “sea of clouds” needs a temperature inversion: cool, moist air trapped in the valley under a warmer layer aloft. The cloud deck tops out below the summit, the sky above is clear, and the wind is light enough not to mix the layers together.</p>
+            <p>This app compares the summit with a nearby valley town, checks the mid- and high-cloud cover, and scores every hour. The best window is usually from first light until mid-morning. After that, the sun often burns the deck away.</p>
+            <p class="fine-print">Forecasts are uncertain. A score of 80 is a strong hint, not a promise. Check the sky, the webcams, and your own judgment before you commit.</p>
+          </div>
+        </details>
+      </section>
+
+      <footer class="footer">
+        <span>Data from <a href="https://open-meteo.com/" target="_blank" rel="noreferrer">Open-Meteo</a> · Updated <span id="updatedAt">—</span></span>
+        <span>Built for the Bay Area marine layer.</span>
+      </footer>
+    </main>
+  </div>
+
+  <div class="sheet-backdrop" id="sheetBackdrop" hidden></div>
+
+  <section class="sheet" id="locationSheet" role="dialog" aria-modal="true" aria-labelledby="locationSheetTitle" tabindex="-1" hidden>
+    <div class="sheet-handle" aria-hidden="true"></div>
+    <div class="sheet-head">
+      <div>
+        <span class="eyebrow">Your hike</span>
+        <h2 id="locationSheetTitle">Choose a peak</h2>
+      </div>
+      <button class="icon-btn sheet-close" type="button" aria-label="Close">
+        <svg><use href="#i-close"></use></svg>
+      </button>
+    </div>
+    <div class="sheet-body">
+      <div class="search-box">
+        <svg><use href="#i-search"></use></svg>
+        <input id="locationSearch" type="search" placeholder="Search a peak or town" autocomplete="off">
+      </div>
+      <button class="use-location" id="useLocationBtn" type="button">
+        <span class="use-location-icon"><svg><use href="#i-pin"></use></svg></span>
+        <span><strong>Use my current location</strong><small>Find the closest peak in the list</small></span>
+        <svg class="use-location-chevron"><use href="#i-chevron-right"></use></svg>
+      </button>
+      <div class="location-list" id="locationList"></div>
+    </div>
+  </section>
+
+  <section class="sheet sheet--tall" id="settingsSheet" role="dialog" aria-modal="true" aria-labelledby="settingsSheetTitle" tabindex="-1" hidden>
+    <div class="sheet-handle" aria-hidden="true"></div>
+    <div class="sheet-head">
+      <div>
+        <span class="eyebrow">Make it yours</span>
+        <h2 id="settingsSheetTitle">Settings</h2>
+      </div>
+      <button class="icon-btn sheet-close" type="button" aria-label="Close">
+        <svg><use href="#i-close"></use></svg>
+      </button>
+    </div>
+    <div class="sheet-body">
+      <div class="settings-group">
+        <h3>Location</h3>
+        <button class="settings-row" id="settingsLocationBtn" type="button">
+          <span class="settings-row-icon"><svg><use href="#i-pin"></use></svg></span>
+          <span class="settings-row-copy"><strong id="settingsLocationName">Boccardo Peak</strong><small id="settingsLocationMeta">1,896 ft · San Jose</small></span>
+          <svg class="settings-chevron"><use href="#i-chevron-right"></use></svg>
+        </button>
+      </div>
+
+      <div class="settings-group">
+        <h3>Alerts</h3>
+        <p class="settings-help">Get a push when a good window is coming — 30 hours ahead by default. The alert is sent by a GitHub Action in your copy of the repo, so you only need to set this up once.</p>
+        <div class="field">
+          <label for="ntfyTopic">ntfy topic</label>
+          <div class="input-row">
+            <input id="ntfyTopic" type="text" placeholder="e.g. atc-7f3k9-m2q8" spellcheck="false" autocomplete="off">
+            <button class="icon-btn" id="generateTopicBtn" type="button" aria-label="Generate a private ntfy topic" title="Generate a private topic">
+              <svg><use href="#i-sparkle"></use></svg>
+            </button>
+            <button class="icon-btn" id="copyTopicBtn" type="button" aria-label="Copy ntfy topic" title="Copy topic">
+              <svg><use href="#i-copy"></use></svg>
+            </button>
+          </div>
+          <p class="field-hint">Tap the sparkle to generate a private topic, then install the free <a href="https://ntfy.sh/" target="_blank" rel="noreferrer">ntfy</a> app and subscribe to it.</p>
+        </div>
+        <div class="button-row">
+          <button class="button button--soft" id="testNotifyBtn" type="button">Send test alert</button>
+        </div>
+        <div class="setup-note">
+          <strong>One-time setup</strong>
+          <p>Add <code>NTFY_TOPIC</code> as a repository secret (or use the Telegram secrets below). The included GitHub Action checks every 15 minutes and sends the alert. See the README for the walkthrough.</p>
+        </div>
+        <details class="advanced">
+          <summary>Prefer Telegram? <svg><use href="#i-chevron-down"></use></svg></summary>
+          <p>Add <code>TELEGRAM_BOT_TOKEN</code> and <code>TELEGRAM_CHAT_ID</code> as repository secrets instead. The same action will use Telegram. Create a bot with <code>@BotFather</code>, send it a message, then read your chat ID from <code>api.telegram.org/bot&lt;token&gt;/getUpdates</code>.</p>
+        </details>
+      </div>
+
+      <div class="settings-group">
+        <h3>iPhone home-screen widget</h3>
+        <p class="settings-help">The fastest glance: a real home-screen widget that shows the current verdict and the next window without opening anything.</p>
+        <ol class="steps">
+          <li>Install <a href="https://scriptable.app/" target="_blank" rel="noreferrer">Scriptable</a> (free).</li>
+          <li>Tap <strong>Copy widget script</strong> below, create a new script in Scriptable, and paste.</li>
+          <li>Long-press the home screen → <strong>Add Widget</strong> → Scriptable → choose the script.</li>
+          <li>Optional: set the widget parameter to a peak ID such as <code>mount-tamalpais</code>.</li>
+        </ol>
+        <div class="button-row">
+          <button class="button button--soft" id="copyWidgetBtn" type="button">Copy widget script</button>
+        </div>
+        <p class="field-hint">The copied script already points at this site. If copying is blocked, <a href="./widget/CloudInversionWidget.js" target="_blank" rel="noreferrer">open the raw file</a> and set <code>APP_URL</code> by hand.</p>
+      </div>
+
+      <div class="settings-group">
+        <h3>Add to Home Screen</h3>
+        <ol class="steps">
+          <li>Open this page in Safari on your iPhone.</li>
+          <li>Tap the <strong>Share</strong> button.</li>
+          <li>Choose <strong>Add to Home Screen</strong>.</li>
+          <li>Launch it from the icon once so the app can cache itself.</li>
+        </ol>
+      </div>
+
+      <div class="settings-group">
+        <h3>About</h3>
+        <p class="settings-help">Above the Clouds scores the marine-layer inversion for Bay Area peaks. It uses the free Open-Meteo forecast API and runs entirely in your browser. No account, no tracking.</p>
+        <p class="settings-help fine-print">Forecasts can be wrong. This is a planning aid, not a safety device. Check the weather, trail conditions, and your own eyes before you go.</p>
+        <button class="button button--ghost full-width" id="replayOnboardingBtn" type="button">Show the welcome tour again</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="sheet" id="detailSheet" role="dialog" aria-modal="true" aria-labelledby="detailSheetTitle" tabindex="-1" hidden>
+    <div class="sheet-handle" aria-hidden="true"></div>
+    <div class="sheet-head">
+      <div>
+        <span class="eyebrow" id="detailEyebrow">Hourly detail</span>
+        <h2 id="detailSheetTitle">—</h2>
+      </div>
+      <button class="icon-btn sheet-close" type="button" aria-label="Close">
+        <svg><use href="#i-close"></use></svg>
+      </button>
+    </div>
+    <div class="sheet-body" id="detailBody"></div>
+  </section>
+
+  <div class="onboarding" id="onboarding" hidden>
+    <div class="onboarding-card">
+      <div class="onboarding-art" aria-hidden="true">
+        <div class="onboarding-sun"></div>
+        <div class="onboarding-cloud onboarding-cloud--a"></div>
+        <div class="onboarding-cloud onboarding-cloud--b"></div>
+        <div class="onboarding-cloud onboarding-cloud--c"></div>
+      </div>
+      <span class="eyebrow">Welcome to Above the Clouds</span>
+      <h2>Know before you go.</h2>
+      <p class="onboarding-copy">A one-glance answer to the only question that matters on a marine-layer morning: <em>will I be above the clouds?</em></p>
+      <div class="onboarding-steps">
+        <div class="onboarding-step">
+          <span class="onboarding-step-icon"><svg><use href="#i-pin"></use></svg></span>
+          <div><strong>Pick your peak</strong><span>Boccardo Peak is the default. Choose any Bay Area summit from San Jose to Point Reyes.</span></div>
+        </div>
+        <div class="onboarding-step">
+          <span class="onboarding-step-icon"><svg><use href="#i-sunrise"></use></svg></span>
+          <div><strong>Get the verdict</strong><span>GO, MAYBE, or NO — with the next good window and the reasons behind it.</span></div>
+        </div>
+        <div class="onboarding-step">
+          <span class="onboarding-step-icon"><svg><use href="#i-bell"></use></svg></span>
+          <div><strong>Get pinged</strong><span>Add the iPhone widget for a glance, and ntfy alerts for a heads-up.</span></div>
+        </div>
+      </div>
+      <button class="button button--primary full-width" id="onboardingStartBtn" type="button">Show me Boccardo Peak</button>
+      <button class="text-btn" id="onboardingSettingsBtn" type="button">Set up alerts &amp; widget</button>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script src="./shared/conditions.js"></script>
+  <script src="./shared/openmeteo.js"></script>
+  <script src="./app.js"></script>
+</body>
+</html>

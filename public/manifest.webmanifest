@@ -1,0 +1,53 @@
+{
+  "name": "Above the Clouds",
+  "short_name": "Clouds",
+  "description": "A glanceable marine-layer inversion forecast for Bay Area peaks.",
+  "id": "./",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#070b18",
+  "theme_color": "#070b18",
+  "categories": ["weather", "travel", "sports"],
+  "icons": [
+    {
+      "src": "./icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./icons/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Boccardo Peak",
+      "short_name": "Boccardo",
+      "description": "The default South Bay summit",
+      "url": "./?location=boccardo-peak"
+    },
+    {
+      "name": "Mount Tamalpais",
+      "short_name": "Mt. Tam",
+      "description": "Marin's classic above-the-clouds hike",
+      "url": "./?location=mount-tamalpais"
+    },
+    {
+      "name": "Mount Diablo",
+      "short_name": "Diablo",
+      "description": "East Bay summit forecast",
+      "url": "./?location=mount-diablo"
+    }
+  ]
+}
