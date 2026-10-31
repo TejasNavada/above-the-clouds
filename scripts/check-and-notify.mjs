@@ -94,7 +94,7 @@ if (testMode) {
     title: "Above the Clouds test alert",
     body:
       "Alerts are working. Your GitHub Actions notification setup is ready.\n\n" +
-      `Watching: ${selected.map((location) => location.name).join(", ")}` +
+      `Watching: ${selected.length > 5 ? `${selected.length} Bay Area peaks` : selected.map((location) => location.name).join(", ")}` +
       (appUrl ? `\n\nOpen the forecast: ${appUrl}` : ""),
     link: appUrl,
     priority: 3,

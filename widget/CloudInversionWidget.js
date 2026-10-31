@@ -2180,7 +2180,8 @@ function buildLarge(rows, meta, now) {
 
   let footText;
   if (goRows.length > visible.length) {
-    footText = "Top " + visible.length + " of " + goRows.length + " GO · tap for all";
+    footText = (meta.stale ? "Saved · " : "") +
+      "Top " + visible.length + " of " + goRows.length + " GO · tap for all";
   } else if (meta.stale) {
     footText = "Saved " + CloudInversion.formatTime(meta.savedAt, TIME_ZONE, true) + " · tap for all";
   } else {
