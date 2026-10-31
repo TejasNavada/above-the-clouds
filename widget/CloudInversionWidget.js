@@ -2095,6 +2095,10 @@ function bayTimeLabel(row, now) {
   return day + " " + start + "–" + end;
 }
 
+function bayTone(row) {
+  return row.isGo ? "good" : row.score >= 50 ? "maybe" : "no";
+}
+
 function bayRow(widget, row, now) {
   const stack = widget.addStack();
   stack.layoutHorizontally();
@@ -2118,10 +2122,71 @@ function bayRow(widget, row, now) {
 
   const score = stack.addText(String(row.score));
   score.font = Font.boldSystemFont(11);
-  score.textColor = toneColor(row.isGo ? "good" : row.score >= 50 ? "maybe" : "no");
+  score.textColor = toneColor(bayTone(row));
   score.lineLimit = 1;
 
   return stack;
+}
+
+function drawBayScoreBar(score, width, height, tone) {
+  const ctx = new DrawContext();
+  ctx.size = new Size(width, height);
+  ctx.opaque = false;
+  ctx.respectScreenScale = true;
+  ctx.setFillColor(new Color(COLORS.track));
+  ctx.fillRect(new Rect(0, 0, width, height));
+  const filled = Math.max(2, Math.round(width * Math.max(0, Math.min(100, score)) / 100));
+  ctx.setFillColor(toneColor(tone));
+  ctx.fillRect(new Rect(0, 0, filled, height));
+  return ctx.getImage();
+}
+
+function bayCard(widget, row, now) {
+  const tone = bayTone(row);
+  const card = widget.addStack();
+  card.layoutVertically();
+  card.spacing = 4;
+  card.setPadding(8, 10, 8, 10);
+  card.backgroundColor = new Color("#111f3a");
+  card.cornerRadius = 11;
+
+  const top = card.addStack();
+  top.layoutHorizontally();
+  top.centerAlignContent();
+
+  const name = top.addText(shortName(row.name));
+  name.font = Font.boldSystemFont(14);
+  name.textColor = new Color(COLORS.ink);
+  name.lineLimit = 1;
+  name.minimumScaleFactor = 0.65;
+
+  top.addSpacer();
+
+  const score = top.addText(String(row.score));
+  score.font = Font.boldSystemFont(21);
+  score.textColor = toneColor(tone);
+  score.lineLimit = 1;
+
+  const bottom = card.addStack();
+  bottom.layoutHorizontally();
+  bottom.centerAlignContent();
+
+  const time = bottom.addText(bayTimeLabel(row, now));
+  time.font = Font.systemFont(9.5);
+  time.textColor = new Color(COLORS.muted);
+  time.lineLimit = 1;
+  time.minimumScaleFactor = 0.75;
+
+  bottom.addSpacer();
+
+  const kind = bottom.addText(row.isGo ? "GO WINDOW" : "BEST HOUR");
+  kind.font = Font.boldSystemFont(7.5);
+  kind.textColor = toneColor(tone);
+
+  const bar = card.addImage(drawBayScoreBar(row.score, 286, 3, tone));
+  bar.imageSize = new Size(286, 3);
+
+  return card;
 }
 
 function buildLarge(rows, meta, now) {
@@ -2169,11 +2234,17 @@ function buildLarge(rows, meta, now) {
   subtitle.font = Font.systemFont(9);
   subtitle.textColor = new Color(COLORS.muted);
 
-  widget.addSpacer(8);
+  const cardMode = visible.length <= 4;
+  widget.addSpacer(cardMode ? 5 : 8);
 
-  for (const row of visible) {
-    bayRow(widget, row, now);
-    widget.addSpacer(5);
+  for (let i = 0; i < visible.length; i++) {
+    if (cardMode) {
+      bayCard(widget, visible[i], now);
+      if (i < visible.length - 1) widget.addSpacer(6);
+    } else {
+      bayRow(widget, visible[i], now);
+      widget.addSpacer(5);
+    }
   }
 
   widget.addSpacer();

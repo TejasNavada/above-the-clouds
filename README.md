@@ -138,17 +138,20 @@ is a good alternative if you already use Telegram and want its push pipeline.
 ### Alert behavior
 
 `.github/workflows/notify.yml` runs every 15 minutes on a best-effort schedule.
-For each configured peak it:
+It checks every configured peak and sends **at most one combined notification
+per run**:
 
-- sends one alert when a GO window enters the horizon (default **30 hours**);
-- sends one more when the window actually opens, if it is still GO;
-- stores sent-window keys in the Actions cache so the same window is not sent
-  again on every run.
+- All newly eligible peaks are listed together, grouped into **OPEN NOW** and
+  **COMING UP**.
+- If no peak has a new GO window, nothing is sent.
+- A specific peak is not repeated for the same window. The next run can send a
+  new digest only if another window becomes eligible.
+- Tapping the alert opens the full, ranked Bay-wide picker.
 
-GitHub's scheduler can be a few minutes late. That is expected and is why the
-window alert is a heads-up rather than a minute-by-minute alarm. GitHub may also
-pause scheduled workflows after 60 days without repository activity; if alerts
-go quiet, open the Actions tab and re-enable the workflow.
+GitHub's scheduler can be a few minutes late. That is expected, and the digest
+is a heads-up rather than a minute-by-minute alarm. GitHub may also pause
+scheduled workflows after 60 days without repository activity; if alerts go
+quiet, open the Actions tab and re-enable the workflow.
 
 ### Alert configuration
 
@@ -177,7 +180,7 @@ node -e "console.log(require('./locations.json').map(l => l.id).join(','))"
 ```
 
 The 15-minute alert job checks each configured peak. If several peaks line up,
-each one gets its own deduplicated alert.
+they are combined into one deduplicated digest for that run.
 
 To try the notification logic without sending anything:
 

@@ -139,6 +139,8 @@ console.log(
     `(horizon ${horizonHours}h, threshold ${threshold})${dryRun ? " [dry run]" : ""}`
 );
 
+const newEntries = [];
+
 for (const location of selected) {
   let forecast;
   try {
@@ -178,17 +180,22 @@ for (const location of selected) {
       console.log(`  ${location.name}: ${candidate.phase} ${candidate.window.label} — already sent`);
       continue;
     }
+    newEntries.push({ location, candidate, key });
+  }
+}
 
-    const message = buildMessage(location, forecast, candidate);
-    if (dryRun) {
-      console.log(`\n--- ${candidate.phase.toUpperCase()} ${location.name} ---`);
-      console.log(`Title: ${message.title}`);
-      console.log(message.body);
-      console.log("---\n");
-      sent.push(key);
-      continue;
-    }
+let digestSent = false;
+if (newEntries.length) {
+  newEntries.sort(compareEntries);
+  const message = buildDigestMessage(newEntries);
 
+  if (dryRun) {
+    console.log("\n--- BAY-WIDE GO DIGEST ---");
+    console.log(`Title: ${message.title}`);
+    console.log(message.body);
+    console.log("---\n");
+    newEntries.forEach((entry) => sent.push(entry.key));
+  } else {
     const results = await Promise.allSettled([
       channels.ntfy ? sendNtfy(message) : Promise.resolve("skipped"),
       channels.telegram ? sendTelegram(message) : Promise.resolve("skipped")
@@ -202,22 +209,27 @@ for (const location of selected) {
       .map((result) => result.reason && result.reason.message);
 
     if (delivered) {
-      state.windows[key] = {
-        sentAt: now,
-        windowStartTs: candidate.window.startTs,
-        windowEndTs: candidate.window.endTs,
-        locationId: location.id,
-        phase: candidate.phase,
-        score: candidate.window.score
-      };
-      sent.push(key);
-      console.log(`  ${location.name}: sent ${candidate.phase} alert for ${candidate.window.label}`);
+      digestSent = true;
+      for (const entry of newEntries) {
+        state.windows[entry.key] = {
+          sentAt: now,
+          windowStartTs: entry.candidate.window.startTs,
+          windowEndTs: entry.candidate.window.endTs,
+          locationId: entry.location.id,
+          phase: entry.candidate.phase,
+          score: entry.candidate.window.score
+        };
+        sent.push(entry.key);
+      }
+      console.log(`  Sent one bay-wide alert covering ${newEntries.length} window${newEntries.length === 1 ? "" : "s"}.`);
       if (errors.length) console.warn(`    Some channels failed: ${errors.join("; ")}`);
     } else {
-      failed.push(`${location.name}: ${errors.join("; ") || "no channel accepted the message"}`);
-      console.error(`  ${location.name}: failed to send ${candidate.phase} alert`);
+      failed.push(`digest: ${errors.join("; ") || "no channel accepted the message"}`);
+      console.error("  Failed to send the bay-wide alert.");
     }
   }
+} else {
+  console.log("  No new GO windows to alert.");
 }
 
 if (!dryRun && sent.length) {
@@ -226,7 +238,7 @@ if (!dryRun && sent.length) {
 }
 
 console.log(
-  `\nDone. sent=${sent.length} skipped=${skipped.length} failed=${failed.length}` +
+  `\nDone. alerts=${digestSent || (dryRun && sent.length) ? 1 : 0} sentWindows=${sent.length} skipped=${skipped.length} failed=${failed.length}` +
     (failed.length ? `\n${failed.map((item) => "  ! " + item).join("\n")}` : "")
 );
 
@@ -236,48 +248,75 @@ if (failed.length) process.exitCode = 1;
 // Message building
 // ---------------------------------------------------------------------------
 
-function buildMessage(location, forecast, candidate) {
-  const window = candidate.window;
-  const elevation = location.peak.elevationFt.toLocaleString("en-US");
-  const windowLabel = CloudInversion.formatWindowLabel(
-    { startTs: window.startTs, endTs: window.endTs },
-    TZ,
-    now
-  );
-  const hour = window.hours.find((h) => h.score === window.score) || forecast.current;
-  const detail = CloudInversion.cloudStateDetail(hour, forecast.peakElevationFt);
-  const reasons = [
-    detail,
-    hour.metrics.skyClear >= 0.7 ? "clear sky above" : "some high cloud above",
-    hour.effectiveWindMph < 10 ? "light wind" : "a bit breezy"
-  ];
+function compareEntries(a, b) {
+  const aNow = a.candidate.phase === "now" ? 0 : 1;
+  const bNow = b.candidate.phase === "now" ? 0 : 1;
+  if (aNow !== bNow) return aNow - bNow;
+  if (a.candidate.window.score !== b.candidate.window.score) {
+    return b.candidate.window.score - a.candidate.window.score;
+  }
+  if (a.candidate.window.startTs !== b.candidate.window.startTs) {
+    return a.candidate.window.startTs - b.candidate.window.startTs;
+  }
+  return a.location.name.localeCompare(b.location.name);
+}
 
+function compactWindowLabel(window) {
+  const startDay = CloudInversion.formatDayLabel(window.startTs, TZ, now);
+  const endDay = CloudInversion.formatDayLabel(window.endTs, TZ, now);
+  const startShort = startDay === "Today" ? "Today" : startDay === "Tomorrow" ? "Tmrw" : startDay.split(",")[0];
+  const endShort = endDay === "Today" ? "Today" : endDay === "Tomorrow" ? "Tmrw" : endDay.split(",")[0];
+  const startTime = CloudInversion.formatTime(window.startTs, TZ, true);
+  const endTime = CloudInversion.formatTime(window.endTs, TZ, true);
+  if (startShort === endShort) return `${startShort} ${startTime}–${endTime}`;
+  return `${startShort} ${startTime} – ${endShort} ${endTime}`;
+}
+
+function buildDigestMessage(entries) {
+  const current = entries.filter((entry) => entry.candidate.phase === "now");
+  const upcoming = entries.filter((entry) => entry.candidate.phase !== "now");
   const base = appUrl.replace(/[?#].*$/, "").replace(/\/+$/, "");
-  const link = base ? `${base}/?location=${location.id}` : "";
-  let body =
-    `${location.name} · ${elevation} ft\n` +
-    `Score ${window.score}/100. ${reasons.join(", ")}.\n\n` +
-    `${windowLabel}`;
-  if (link) body += `\n\nOpen the forecast: ${link}`;
+  const link = base ? `${base}/?bay=1` : "";
 
-  if (candidate.phase === "now") {
-    const minutesLeft = Math.max(0, Math.round((window.endTs - now) / 60));
-    return {
-      title: `Above the clouds now — until ${CloudInversion.formatTime(window.endTs, TZ, true)}`,
-      body: `The window is open for about ${minutesLeft} more minutes.\n\n${body}`,
-      link,
-      priority: 4,
-      tags: ["sunrise", "cloud"]
-    };
+  const sections = [];
+  if (current.length) {
+    const lines = current.map((entry) => {
+      const window = entry.candidate.window;
+      return `• ${entry.location.name} · ${entry.location.peak.elevationFt.toLocaleString("en-US")} ft — until ${CloudInversion.formatTime(window.endTs, TZ, true)} · ${window.score}/100`;
+    });
+    sections.push("OPEN NOW\n" + lines.join("\n"));
+  }
+  if (upcoming.length) {
+    const lines = upcoming.map((entry) => {
+      const window = entry.candidate.window;
+      return `• ${entry.location.name} · ${entry.location.peak.elevationFt.toLocaleString("en-US")} ft — ${compactWindowLabel(window)} · ${window.score}/100`;
+    });
+    sections.push("COMING UP\n" + lines.join("\n"));
   }
 
-  const hoursAway = Math.max(1, Math.round((window.startTs - now) / 3600));
+  let body = sections.join("\n\n");
+  const linkSuffix = link ? `\n\nOpen the Bay-wide outlook: ${link}` : "";
+  if (body.length + linkSuffix.length > 3900) {
+    body = body.slice(0, 3900 - linkSuffix.length - 40).replace(/\n[^\n]*$/, "");
+    body += "\n…more GO windows in the app.";
+  }
+  body += linkSuffix;
+
+  let title;
+  if (current.length && upcoming.length) {
+    title = `Above the clouds now — ${current.length} peak${current.length === 1 ? "" : "s"}; ${upcoming.length} more coming`;
+  } else if (current.length) {
+    title = `Above the clouds now — ${current.length} Bay Area peak${current.length === 1 ? "" : "s"}`;
+  } else {
+    title = `${upcoming.length} Bay Area GO window${upcoming.length === 1 ? "" : "s"} coming up`;
+  }
+
   return {
-    title: `Sunrise window: ${windowLabel}`,
-    body: `${body}\n\nStarts in about ${hoursAway} hour${hoursAway === 1 ? "" : "s"}.`,
+    title,
+    body,
     link,
-    priority: 3,
-    tags: ["sunrise", "mountain"]
+    priority: current.length ? 4 : 3,
+    tags: current.length ? ["sunrise", "cloud"] : ["sunrise", "mountain"]
   };
 }
 
@@ -364,10 +403,10 @@ function pruneState(nowTs) {
     if (!value || !value.windowStartTs || value.windowStartTs < cutoff) delete state.windows[key];
   }
   const remaining = Object.entries(state.windows);
-  if (remaining.length > 200) {
+  if (remaining.length > 500) {
     remaining
       .sort((a, b) => (a[1].sentAt || 0) - (b[1].sentAt || 0))
-      .slice(0, remaining.length - 200)
+      .slice(0, remaining.length - 500)
       .forEach(([key]) => delete state.windows[key]);
   }
 }
