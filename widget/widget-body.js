@@ -11,7 +11,6 @@
 const APP_URL = "";
 const TIME_ZONE = "America/Los_Angeles";
 const REFRESH_MINUTES = 15;
-const MAX_BAY_ROWS = 10;
 
 const COLORS = {
   ink: "#f2f5ff",
@@ -374,35 +373,6 @@ function bayTone(row) {
   return row.isGo ? "good" : row.score >= 50 ? "maybe" : "no";
 }
 
-function bayRow(widget, row, now) {
-  const stack = widget.addStack();
-  stack.layoutHorizontally();
-  stack.centerAlignContent();
-
-  const name = stack.addText(shortName(row.name));
-  name.font = Font.boldSystemFont(10);
-  name.textColor = new Color(COLORS.ink);
-  name.lineLimit = 1;
-  name.minimumScaleFactor = 0.7;
-
-  stack.addSpacer(6);
-
-  const time = stack.addText(bayTimeLabel(row, now));
-  time.font = Font.systemFont(8);
-  time.textColor = new Color(COLORS.muted);
-  time.lineLimit = 1;
-  time.minimumScaleFactor = 0.7;
-
-  stack.addSpacer(7);
-
-  const score = stack.addText(String(row.score));
-  score.font = Font.boldSystemFont(11);
-  score.textColor = toneColor(bayTone(row));
-  score.lineLimit = 1;
-
-  return stack;
-}
-
 function drawBayScoreBar(score, width, height, tone) {
   const ctx = new DrawContext();
   ctx.size = new Size(width, height);
@@ -416,128 +386,246 @@ function drawBayScoreBar(score, width, height, tone) {
   return ctx.getImage();
 }
 
-function bayCard(widget, row, now) {
+function bayCapacity(family) {
+  if (family === "small") return 3;
+  if (family === "medium") return 4;
+  return 7;
+}
+
+function bayListRow(widget, row, now, family) {
+  const nameSize = family === "small" ? 10 : family === "medium" ? 10 : 11;
+  const timeSize = family === "small" ? 8 : 8.5;
+  const scoreSize = family === "small" ? 12.5 : 13;
   const tone = bayTone(row);
-  const card = widget.addStack();
-  card.layoutVertically();
-  card.spacing = 4;
-  card.setPadding(8, 10, 8, 10);
-  card.backgroundColor = new Color("#111f3a");
-  card.cornerRadius = 11;
 
-  const top = card.addStack();
-  top.layoutHorizontally();
-  top.centerAlignContent();
+  if (family === "small") {
+    // Small widgets get a two-line row: name + score, then time. It reads
+    // cleaner than squeezing three columns into the 155pt width.
+    const block = widget.addStack();
+    block.layoutVertically();
+    block.spacing = 0;
 
-  const name = top.addText(shortName(row.name));
-  name.font = Font.boldSystemFont(14);
+    const top = block.addStack();
+    top.layoutHorizontally();
+    top.centerAlignContent();
+
+    const name = top.addText(shortName(row.name));
+    name.font = Font.boldSystemFont(nameSize);
+    name.textColor = new Color(COLORS.ink);
+    name.lineLimit = 1;
+    name.minimumScaleFactor = 0.75;
+
+    top.addSpacer(4);
+
+    const score = top.addText(String(row.score));
+    score.font = Font.boldSystemFont(scoreSize);
+    score.textColor = toneColor(tone);
+    score.lineLimit = 1;
+
+    const time = block.addText(bayTimeLabel(row, now));
+    time.font = Font.systemFont(timeSize);
+    time.textColor = new Color(COLORS.muted);
+    time.lineLimit = 1;
+
+    return block;
+  }
+
+  const stack = widget.addStack();
+  stack.layoutHorizontally();
+  stack.centerAlignContent();
+
+  const name = stack.addText(shortName(row.name));
+  name.font = Font.boldSystemFont(nameSize);
   name.textColor = new Color(COLORS.ink);
   name.lineLimit = 1;
-  name.minimumScaleFactor = 0.65;
+  name.minimumScaleFactor = 0.7;
 
-  top.addSpacer();
+  stack.addSpacer(5);
 
-  const score = top.addText(String(row.score));
-  score.font = Font.boldSystemFont(21);
+  const time = stack.addText(bayTimeLabel(row, now));
+  time.font = Font.systemFont(timeSize);
+  time.textColor = new Color(COLORS.muted);
+  time.lineLimit = 1;
+  time.minimumScaleFactor = 0.7;
+
+  stack.addSpacer(6);
+
+  const score = stack.addText(String(row.score));
+  score.font = Font.boldSystemFont(scoreSize);
   score.textColor = toneColor(tone);
   score.lineLimit = 1;
 
-  const bottom = card.addStack();
-  bottom.layoutHorizontally();
-  bottom.centerAlignContent();
-
-  const time = bottom.addText(bayTimeLabel(row, now));
-  time.font = Font.systemFont(9.5);
-  time.textColor = new Color(COLORS.muted);
-  time.lineLimit = 1;
-  time.minimumScaleFactor = 0.75;
-
-  bottom.addSpacer();
-
-  const kind = bottom.addText(row.isGo ? "GO WINDOW" : "BEST HOUR");
-  kind.font = Font.boldSystemFont(7.5);
-  kind.textColor = toneColor(tone);
-
-  const bar = card.addImage(drawBayScoreBar(row.score, 286, 3, tone));
-  bar.imageSize = new Size(286, 3);
-
-  return card;
+  return stack;
 }
 
-function buildLarge(rows, meta, now) {
+function bayShortDay(ts, now) {
+  const dayLabel = CloudInversion.formatDayLabel(ts, TIME_ZONE, now);
+  return dayLabel === "Today" ? "Today" : dayLabel === "Tomorrow" ? "Tmrw" : dayLabel.split(",")[0];
+}
+
+function bayPulseCompact(widget, days, now) {
+  if (!days || !days.length) return;
+  const columns = widget.addStack();
+  columns.layoutHorizontally();
+
+  for (const day of days.slice(0, 3)) {
+    const column = columns.addStack();
+    column.layoutVertically();
+    column.spacing = 1;
+
+    const line = column.addStack();
+    line.layoutHorizontally();
+    line.centerAlignContent();
+
+    const heading = line.addText(bayShortDay(day.ts, now));
+    heading.font = Font.systemFont(7);
+    heading.textColor = new Color(COLORS.muted);
+
+    line.addSpacer(4);
+
+    const score = line.addText(String(day.score));
+    score.font = Font.boldSystemFont(10.5);
+    score.textColor = toneColor(day.isGo ? "good" : day.score >= 50 ? "maybe" : "no");
+
+    const bar = column.addImage(
+      drawBayScoreBar(day.score, 62, 2, day.isGo ? "good" : day.score >= 50 ? "maybe" : "no")
+    );
+    bar.imageSize = new Size(62, 2);
+
+    columns.addSpacer();
+  }
+}
+
+function bayPulse(widget, days, now) {
+  if (!days || !days.length) return;
+
+  const eyebrow = widget.addText("3-DAY BAY PULSE");
+  eyebrow.font = Font.boldSystemFont(7.5);
+  eyebrow.textColor = new Color(COLORS.dim);
+
+  widget.addSpacer(3);
+
+  const columns = widget.addStack();
+  columns.layoutHorizontally();
+
+  for (const day of days.slice(0, 3)) {
+    const column = columns.addStack();
+    column.layoutVertically();
+    column.spacing = 2;
+
+    const heading = column.addText(bayShortDay(day.ts, now));
+    heading.font = Font.boldSystemFont(8);
+    heading.textColor = new Color(COLORS.muted);
+
+    const score = column.addText(String(day.score));
+    score.font = Font.boldSystemFont(13);
+    score.textColor = toneColor(day.isGo ? "good" : day.score >= 50 ? "maybe" : "no");
+
+    const bar = column.addImage(
+      drawBayScoreBar(day.score, 82, 3, day.isGo ? "good" : day.score >= 50 ? "maybe" : "no")
+    );
+    bar.imageSize = new Size(82, 3);
+
+    const where = column.addText(shortName(day.name));
+    where.font = Font.systemFont(6.5);
+    where.textColor = new Color(COLORS.dim);
+    where.lineLimit = 1;
+    where.minimumScaleFactor = 0.7;
+
+    columns.addSpacer();
+  }
+
+  return columns;
+}
+
+function buildBay(rows, days, meta, now, family) {
   const widget = new ListWidget();
   paintBackground(widget);
-  widget.setPadding(13, 15, 12, 15);
+  const pad = family === "small" ? [10, 11, 9, 11] : family === "medium" ? [11, 13, 9, 13] : [13, 15, 12, 15];
+  widget.setPadding(pad[0], pad[1], pad[2], pad[3]);
 
+  const capacity = bayCapacity(family);
   const goRows = rows.filter((row) => row.isGo);
   const ranked = rows.slice().sort((a, b) =>
     b.score - a.score ||
     a.ts - b.ts ||
     a.name.localeCompare(b.name)
   );
-  const visible = goRows.length
-    ? ranked.filter((row) => row.isGo).slice(0, MAX_BAY_ROWS)
-    : ranked.slice(0, 4);
+  const pool = goRows.length ? ranked.filter((row) => row.isGo) : ranked;
+  const visible = pool.slice(0, capacity);
 
   const header = widget.addStack();
   header.layoutHorizontally();
   header.centerAlignContent();
 
   const brand = header.addText("△  ABOVE THE CLOUDS");
-  brand.font = Font.boldSystemFont(8);
+  brand.font = Font.boldSystemFont(family === "small" ? 7 : 8);
   brand.textColor = new Color(COLORS.muted);
+  brand.lineLimit = 1;
 
   header.addSpacer();
 
   const count = header.addText(goRows.length ? goRows.length + " GO" : "0 GO");
-  count.font = Font.boldSystemFont(8);
+  count.font = Font.boldSystemFont(7.5);
   count.textColor = goRows.length ? new Color(COLORS.good) : new Color(COLORS.muted);
 
   widget.addSpacer(3);
 
   const title = widget.addText(goRows.length ? "GOOD WINDOWS" : "CLOSEST CALLS");
-  title.font = Font.boldSystemFont(21);
+  title.font = Font.boldSystemFont(family === "small" ? 15 : family === "medium" ? 18 : 21);
   title.textColor = goRows.length ? new Color(COLORS.good) : new Color(COLORS.maybe);
   title.lineLimit = 1;
   title.minimumScaleFactor = 0.8;
 
-  const subtitle = widget.addText(
-    goRows.length
-      ? "Next 3 days · strongest outlook first"
-      : "Top 4 single hours · next 3 days"
-  );
-  subtitle.font = Font.systemFont(9);
-  subtitle.textColor = new Color(COLORS.muted);
+  if (family !== "medium") {
+    const subtitle = widget.addText(
+      goRows.length
+        ? "Top " + visible.length + " · next 3 days"
+        : "Top " + visible.length + " single hours · next 3 days"
+    );
+    subtitle.font = Font.systemFont(family === "small" ? 7 : 9);
+    subtitle.textColor = new Color(COLORS.muted);
+    subtitle.lineLimit = 1;
+    subtitle.minimumScaleFactor = 0.8;
+  }
 
-  const cardMode = visible.length <= 4;
-  widget.addSpacer(cardMode ? 5 : 8);
+  widget.addSpacer(family === "small" ? 4 : family === "medium" ? 3 : 6);
 
   for (let i = 0; i < visible.length; i++) {
-    if (cardMode) {
-      bayCard(widget, visible[i], now);
-      if (i < visible.length - 1) widget.addSpacer(6);
-    } else {
-      bayRow(widget, visible[i], now);
-      widget.addSpacer(5);
-    }
+    bayListRow(widget, visible[i], now, family);
+    if (family === "large" && i < visible.length - 1) widget.addSpacer();
+    else if (family === "small" && i < visible.length - 1) widget.addSpacer(4);
+    else if (i < visible.length - 1) widget.addSpacer(3);
+  }
+
+  if (family === "medium" && days && days.length) {
+    widget.addSpacer(4);
+    bayPulseCompact(widget, days, now);
+  } else if (family === "large" && days && days.length) {
+    widget.addSpacer(5);
+    bayPulse(widget, days, now);
   }
 
   widget.addSpacer();
 
+  const timeLabel = CloudInversion.formatTime(meta.savedAt, TIME_ZONE, true);
   let footText;
   if (goRows.length > visible.length) {
     footText = (meta.stale ? "Saved · " : "") +
       "Top " + visible.length + " of " + goRows.length + " GO · tap for all";
   } else if (meta.stale) {
-    footText = "Saved " + CloudInversion.formatTime(meta.savedAt, TIME_ZONE, true) + " · tap for all";
+    footText = "Saved " + timeLabel + " · top " + visible.length;
+  } else if (!goRows.length) {
+    footText = "Top " + visible.length + " · " + timeLabel + " · tap all " + rows.length;
   } else {
-    footText = "Updated " + CloudInversion.formatTime(meta.savedAt, TIME_ZONE, true) + " · tap for all";
+    footText = "Updated " + timeLabel + " · tap for all";
   }
 
   const foot = widget.addText(footText);
-  foot.font = Font.systemFont(8);
+  foot.font = Font.systemFont(family === "small" ? 6.5 : 7.5);
   foot.textColor = new Color(COLORS.dim);
   foot.lineLimit = 1;
+  foot.minimumScaleFactor = 0.8;
 
   return widget;
 }
@@ -613,11 +701,11 @@ function readBayCache() {
   }
 }
 
-function writeBayCache(rows) {
+function writeBayCache(rows, days) {
   try {
     const fm = FileManager.local();
     const file = fm.joinPath(fm.documentsDirectory(), "atc-bay-summaries.json");
-    fm.writeString(file, JSON.stringify({ savedAt: Date.now(), rows: rows }));
+    fm.writeString(file, JSON.stringify({ savedAt: Date.now(), rows: rows, days: days }));
   } catch (error) {
     // A read-only container just means no offline cache.
   }
@@ -643,6 +731,7 @@ async function loadBayDashboard(now) {
     });
 
     const rows = [];
+    const dayMap = {};
     for (const item of bay.locations) {
       try {
         const forecast = CloudInversion.evaluateForecast({
@@ -663,18 +752,44 @@ async function loadBayDashboard(now) {
           endTs: chosen.endTs,
           isGo: Boolean(summary.go)
         });
+
+        for (const day of (forecast.days || []).slice(0, 3)) {
+          const future = (day.hours || []).filter((hour) => hour.ts + 3600 > now);
+          const hours = future.length ? future : day.hours || [];
+          if (!hours.length) continue;
+          const bestHour = hours.reduce((best, hour) => hour.score > best.score ? hour : best, hours[0]);
+          const window = (day.windows || []).find((candidate) => candidate.endTs > now) || null;
+          const score = window ? window.score : bestHour.score;
+          const ts = window ? window.startTs : bestHour.ts;
+          const existing = dayMap[day.date];
+          if (!existing ||
+            score > existing.score ||
+            (score === existing.score && ts < existing.ts)) {
+            dayMap[day.date] = {
+              date: day.date,
+              score: score,
+              ts: ts,
+              name: item.location.name,
+              isGo: Boolean(window)
+            };
+          }
+        }
       } catch (error) {
         // Skip one bad location rather than losing the whole dashboard.
       }
     }
     if (!rows.length) throw new Error("No bay outlooks could be computed");
-    writeBayCache(rows);
-    return { rows: rows, stale: false, savedAt: Math.floor(Date.now() / 1000) };
+    const days = Object.values(dayMap)
+      .sort((a, b) => a.date.localeCompare(b.date))
+      .slice(0, 3);
+    writeBayCache(rows, days);
+    return { rows: rows, days: days, stale: false, savedAt: Math.floor(Date.now() / 1000) };
   } catch (error) {
     const cached = readBayCache();
     if (cached) {
       return {
         rows: cached.rows,
+        days: Array.isArray(cached.days) ? cached.days : [],
         stale: true,
         savedAt: Math.floor(cached.savedAt / 1000)
       };
@@ -728,10 +843,17 @@ async function main() {
   const now = Math.floor(Date.now() / 1000);
   let widget;
 
-  if (family === "large") {
+  const bayFamily = family === "small" || family === "medium" || family === "large";
+  if (bayFamily) {
     try {
       const result = await loadBayDashboard(now);
-      widget = buildLarge(result.rows, { stale: result.stale, savedAt: result.savedAt }, now);
+      widget = buildBay(
+        result.rows,
+        result.days,
+        { stale: result.stale, savedAt: result.savedAt },
+        now,
+        family
+      );
     } catch (error) {
       widget = buildError("Couldn't reach Open-Meteo.\n" + (error && error.message ? error.message : "Check your connection."));
     }
@@ -749,10 +871,8 @@ async function main() {
         widget = buildCircular(forecast);
       } else if (family === "accessoryRectangular") {
         widget = buildRectangular(forecast, location, now, result.stale);
-      } else if (family === "small") {
-        widget = buildSmall(forecast, location, now, result.stale);
       } else {
-        widget = buildMedium(forecast, location, now, result.stale);
+        widget = buildInline(forecast, location, now);
       }
 
       const link = appLink(location);

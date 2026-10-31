@@ -15,6 +15,7 @@ import { fileURLToPath } from "node:url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, "..");
 const code = fs.readFileSync(path.join(root, "widget", "CloudInversionWidget.js"), "utf8");
+const apiCache = new Map();
 
 function createRuntime(options = {}) {
   const family = options.family || "medium";
@@ -160,9 +161,12 @@ function createRuntime(options = {}) {
     }
     async loadJSON() {
       if (options.failNetwork) throw new Error("Network unavailable (mock)");
+      if (apiCache.has(this.url)) return apiCache.get(this.url);
       const response = await fetch(this.url);
       if (!response.ok) throw new Error("HTTP " + response.status);
-      return response.json();
+      const data = await response.json();
+      apiCache.set(this.url, data);
+      return data;
     }
   }
 
@@ -249,10 +253,9 @@ function check(name, condition, detail) {
 try {
   const medium = await render({ family: "medium" });
   const mediumText = medium.texts.join(" | ");
-  check("medium renders", medium.texts.length >= 5, `${medium.texts.length} text nodes`);
-  check("medium includes a verdict", /^(GO|MAYBE|FOG|NO DECK|CLOUDY|FOGGED IN|WINDY|RAIN)$/.test(medium.texts[2] || ""), mediumText.slice(0, 160));
-  check("medium includes Boccardo", mediumText.includes("BOCCARDO PEAK"));
-  check("medium draws the hourly strip", medium.images.length === 1);
+  check("medium bay dashboard renders", medium.texts.length >= 10, `${medium.texts.length} text nodes`);
+  check("medium uses four ranked rows", mediumText.includes("Top 4"), mediumText.slice(0, 160));
+  check("medium adds a compact 3-day pulse", medium.images.length === 3, `${medium.images.length} pulse bars`);
   check(
     "medium sets a refresh date",
     Boolean(medium.widget.refreshAfterDate && typeof medium.widget.refreshAfterDate.getTime === "function")
@@ -260,9 +263,9 @@ try {
 
   const small = await render({ family: "small" });
   const smallText = small.texts.join(" | ");
-  check("small renders", small.texts.length >= 4, `${small.texts.length} text nodes`);
-  check("small includes a verdict", /GO|MAYBE|FOG|NO DECK|CLOUDY|FOGGED IN|WINDY|RAIN/.test(smallText));
-  check("small draws the hourly strip", small.images.length === 1);
+  check("small bay dashboard renders", small.texts.length >= 8, `${small.texts.length} text nodes`);
+  check("small uses three ranked rows", smallText.includes("Top 3"), smallText.slice(0, 140));
+  check("small stays list-only", !smallText.includes("3-DAY BAY PULSE") && small.images.length === 0);
 
   const large = await render({ family: "large" });
   const largeText = large.texts.join(" | ");
@@ -270,9 +273,12 @@ try {
     "large bay dashboard renders",
     (large.texts[0] || "").includes("ABOVE THE CLOUDS") &&
       /(GOOD WINDOWS|CLOSEST CALLS)/.test(largeText) &&
-      large.texts.length >= 10,
+      large.texts.length >= 14,
     largeText.slice(0, 220)
   );
+  check("large uses seven ranked rows", largeText.includes("Top 7"), largeText.slice(0, 160));
+  check("large adds the 3-day pulse", largeText.includes("3-DAY BAY PULSE") && large.images.length === 3);
+
   const largeOffline = await render({ family: "large", failNetwork: true, docs: large.docs });
   check(
     "large dashboard uses its cached summaries offline",
@@ -281,6 +287,7 @@ try {
       largeOffline.texts.join(" ").includes("Saved"),
     largeOffline.texts.slice(0, 7).join(" / ")
   );
+
   const fakeNow = Math.floor(Date.now() / 1000);
   const fakeRows = Array.from({ length: 12 }, (_, i) => ({
     id: "fake-" + i,
@@ -290,10 +297,19 @@ try {
     endTs: fakeNow + (i + 2) * 3600,
     isGo: true
   }));
-  const fakeWidget = large.sandbox.buildLarge(
+  const fakeDays = [0, 1, 2].map((i) => ({
+    date: "2026-11-0" + (i + 1),
+    score: 90 - i * 10,
+    ts: fakeNow + i * 86400,
+    name: "Fake Peak " + (i + 1),
+    isGo: i === 0
+  }));
+  const fakeWidget = large.sandbox.buildBay(
     fakeRows.slice().reverse(),
+    fakeDays,
     { stale: false, savedAt: fakeNow },
-    fakeNow
+    fakeNow,
+    "large"
   );
   const fakeText = flatten(fakeWidget).texts.join(" | ");
   check(
@@ -301,20 +317,20 @@ try {
     fakeText.includes("GOOD WINDOWS") &&
       fakeText.includes("12 GO") &&
       fakeText.includes("Fake Peak 1") &&
-      fakeText.includes("Fake Peak 10") &&
-      !fakeText.includes("Fake Peak 11") &&
+      fakeText.includes("Fake Peak 7") &&
+      !fakeText.includes("Fake Peak 8") &&
       fakeText.indexOf("Fake Peak 1") < fakeText.indexOf("Fake Peak 2") &&
-      fakeText.includes("Top 10 of 12 GO"),
+      fakeText.includes("Top 7 of 12 GO"),
     fakeText.slice(0, 260)
   );
 
-  const tam = await render({ family: "medium", parameter: "mount-tamalpais" });
-  check("widget parameter selects a location", tam.texts.join(" ").includes("MT. TAMALPAIS") || tam.texts.join(" ").includes("TAMALPAIS"));
+  const tam = await render({ family: "accessoryRectangular", parameter: "mount-tamalpais" });
+  check("lock-screen parameter selects a peak", /tamalpais/i.test(tam.texts.join(" ")));
 
   const noIntl = await render({ family: "medium", noIntl: true });
   check(
     "widget renders without Intl",
-    noIntl.texts.length >= 5 &&
+    noIntl.texts.length >= 10 &&
       !noIntl.texts.join(" ").includes("NO SIGNAL") &&
       noIntl.texts.some((text) => /(?:AM|PM)/.test(text)),
     noIntl.texts.slice(0, 8).join(" / ")
@@ -323,14 +339,16 @@ try {
   const failed = await render({ family: "medium", failNetwork: true });
   check("network failure falls back to an error widget", failed.texts.join(" ").includes("NO SIGNAL"));
 
-  // A successful render writes the weather cache. A second run without the
-  // network should re-evaluate that cache against the current time.
-  const online = await render({ family: "medium" });
-  const stale = await render({ family: "medium", failNetwork: true, docs: online.docs });
+  // A successful accessory render writes the single-location weather cache.
+  const online = await render({ family: "accessoryRectangular" });
+  const onlineFiles = fs.readdirSync(online.docs);
+  const stale = await render({ family: "accessoryRectangular", failNetwork: true, docs: online.docs });
   check(
-    "cached weather renders when offline",
-    !stale.texts.join(" ").includes("NO SIGNAL") && stale.images.length === 1,
-    stale.texts.slice(0, 4).join(" / ")
+    "single-peak cache renders offline",
+    !stale.texts.join(" ").includes("NO SIGNAL") && stale.texts.length >= 2,
+    "online=" + online.texts.slice(0, 2).join(" / ") +
+      " | files=" + onlineFiles.join(",") +
+      " | stale=" + stale.texts.slice(0, 3).join(" / ")
   );
 } catch (error) {
   failures++;

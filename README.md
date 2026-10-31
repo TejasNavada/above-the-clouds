@@ -25,8 +25,8 @@ includes 38 summits from San Jose to Point Reyes.
 - Shows the current verdict plus the next GO window and a 3-day outlook.
 - Works as a PWA with offline app-shell caching and a saved last-good forecast.
 - Sends free push alerts through [ntfy](https://ntfy.sh/) or Telegram.
-- Includes a **large bay-wide Scriptable widget** for ranked GO windows, plus
-  small/medium/lock-screen layouts for one peak.
+- Includes bay-wide Scriptable widgets in all three home-screen sizes, with
+  lock-screen layouts for one peak.
 
 The app calls the free [Open-Meteo](https://open-meteo.com/) API. There is no
 account, analytics, or application server.
@@ -218,24 +218,25 @@ offline display.
 6. Long-press the home screen → **+** → **Scriptable** → choose a large,
    small, medium, or lock-screen widget → select this script.
 
-### Large bay-wide widget
+### Bay-wide widget sizes
 
-Use a **large** Scriptable widget for the bay-wide dashboard:
+Every home-screen size ranks the Bay by the best outlook in the next three days:
+highest score first, then earliest occurrence time. If there are GO windows, it
+shows those; otherwise it shows the closest single-hour chances.
 
-- It ranks every peak by the best outlook in the next three days: highest score
-  first, then the earliest occurrence time.
-- If there are GO windows, it lists them; if none, it shows the **top 4 closest
-  chances**.
-- Because an iPhone large widget cannot scroll, it shows the top 10 GO windows
-  when there are more than 10, with a “Top 10 of N” footer. Tapping the widget
-  opens the full, ranked location picker in the app.
-- It uses one bulk Open-Meteo request for all 38 peaks, and caches the compact
-  summary for offline display.
+| Size | Rows | Extra detail |
+| --- | ---: | --- |
+| Small | 3 | Ranked list only |
+| Medium | 4 | 3-day Bay pulse with the best score for each of the next three days |
+| Large | 7 | Larger 3-day pulse, including the peak behind each day’s best score |
 
-### Small and medium widgets
+Tapping any widget opens the full, ranked 38-peak picker in the app. The widget
+uses one bulk Open-Meteo request for all 38 peaks and caches the compact summary
+for offline display. When more locations qualify than fit, the footer shows
+“Top N of M GO.”
 
-To show one peak, use a small or medium widget and set its **Parameter** to a
-location ID, for example `mount-tamalpais`. Without a parameter it uses
+Lock-screen widgets still show one peak. Set their **Parameter** to a location
+ID, for example `mount-tamalpais`. Without a parameter they use
 `boccardo-peak`, or the value of `ATC_DEFAULT_LOCATION` at build time.
 
 If copying is blocked, the deployed site also serves the raw script at
