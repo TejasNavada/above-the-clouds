@@ -237,7 +237,7 @@ async function render(options) {
   ]);
   const widget = runtime.getWidget();
   if (!widget) throw new Error("Script did not set a widget");
-  return { widget, docs: runtime.docs, ...flatten(widget) };
+  return { widget, docs: runtime.docs, sandbox: runtime.sandbox, ...flatten(widget) };
 }
 
 let failures = 0;
@@ -263,6 +263,50 @@ try {
   check("small renders", small.texts.length >= 4, `${small.texts.length} text nodes`);
   check("small includes a verdict", /GO|MAYBE|FOG|NO DECK|CLOUDY|FOGGED IN|WINDY|RAIN/.test(smallText));
   check("small draws the hourly strip", small.images.length === 1);
+
+  const large = await render({ family: "large" });
+  const largeText = large.texts.join(" | ");
+  check(
+    "large bay dashboard renders",
+    (large.texts[0] || "").includes("ABOVE THE CLOUDS") &&
+      /(GOOD WINDOWS|CLOSEST CALLS)/.test(largeText) &&
+      large.texts.length >= 10,
+    largeText.slice(0, 220)
+  );
+  const largeOffline = await render({ family: "large", failNetwork: true, docs: large.docs });
+  check(
+    "large dashboard uses its cached summaries offline",
+    largeOffline.texts.join(" ").includes("ABOVE THE CLOUDS") &&
+      !largeOffline.texts.join(" ").includes("NO SIGNAL") &&
+      largeOffline.texts.join(" ").includes("Saved"),
+    largeOffline.texts.slice(0, 7).join(" / ")
+  );
+  const fakeNow = Math.floor(Date.now() / 1000);
+  const fakeRows = Array.from({ length: 12 }, (_, i) => ({
+    id: "fake-" + i,
+    name: "Fake Peak " + (i + 1),
+    score: 99 - i,
+    ts: fakeNow + (i + 1) * 3600,
+    endTs: fakeNow + (i + 2) * 3600,
+    isGo: true
+  }));
+  const fakeWidget = large.sandbox.buildLarge(
+    fakeRows.slice().reverse(),
+    { stale: false, savedAt: fakeNow },
+    fakeNow
+  );
+  const fakeText = flatten(fakeWidget).texts.join(" | ");
+  check(
+    "large GO mode ranks, caps, and discloses overflow",
+    fakeText.includes("GOOD WINDOWS") &&
+      fakeText.includes("12 GO") &&
+      fakeText.includes("Fake Peak 1") &&
+      fakeText.includes("Fake Peak 10") &&
+      !fakeText.includes("Fake Peak 11") &&
+      fakeText.indexOf("Fake Peak 1") < fakeText.indexOf("Fake Peak 2") &&
+      fakeText.includes("Top 10 of 12 GO"),
+    fakeText.slice(0, 260)
+  );
 
   const tam = await render({ family: "medium", parameter: "mount-tamalpais" });
   check("widget parameter selects a location", tam.texts.join(" ").includes("MT. TAMALPAIS") || tam.texts.join(" ").includes("TAMALPAIS"));

@@ -265,6 +265,13 @@
         <span><strong>Use my current location</strong><small>Find the closest peak in the list</small></span>
         <svg class="use-location-chevron"><use href="#i-chevron-right"></use></svg>
       </button>
+      <div class="location-tools">
+        <div class="segmented" id="locationSort" role="group" aria-label="Sort peaks">
+          <button type="button" data-sort="best" aria-pressed="true">Best chance</button>
+          <button type="button" data-sort="region" aria-pressed="false">By region</button>
+        </div>
+        <span class="location-status" id="locationStatus">Bay outlook —</span>
+      </div>
       <div class="location-list" id="locationList"></div>
     </div>
   </section>
@@ -321,12 +328,12 @@
 
       <div class="settings-group">
         <h3>iPhone home-screen widget</h3>
-        <p class="settings-help">The fastest glance: a real home-screen widget that shows the current verdict and the next window without opening anything.</p>
+        <p class="settings-help">The fastest glance: a large home-screen widget ranks the Bay’s best GO windows. Small and medium widgets show one peak. Anything beyond the large widget’s top 10 is one tap away in the full ranked list.</p>
         <ol class="steps">
           <li>Install <a href="https://scriptable.app/" target="_blank" rel="noreferrer">Scriptable</a> (free).</li>
           <li>Tap <strong>Copy widget script</strong> below, create a new script in Scriptable, and paste.</li>
-          <li>Long-press the home screen → <strong>Add Widget</strong> → Scriptable → choose the script.</li>
-          <li>Optional: set the widget parameter to a peak ID such as <code>mount-tamalpais</code>.</li>
+          <li>Long-press the home screen → <strong>Add Widget</strong> → Scriptable → choose a <strong>large</strong> widget for the bay-wide dashboard, or small/medium for one peak.</li>
+          <li>Optional: for a small or medium widget, set the parameter to a peak ID such as <code>mount-tamalpais</code>.</li>
         </ol>
         <div class="button-row">
           <button class="button button--soft" id="copyWidgetBtn" type="button">Copy widget script</button>

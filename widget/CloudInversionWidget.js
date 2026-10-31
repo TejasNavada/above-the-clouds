@@ -1432,6 +1432,67 @@ const LOCATIONS = [
     }
   }
 
+  // Compact "what is the best shot in the next three outlook days?" summary.
+  // `go` is the strongest GO window, while `best` is the strongest individual
+  // future hour when no GO window exists. Both are useful to the bay-wide
+  // picker and the large iPhone widget.
+  function summarizeForecast(forecast, nowTs) {
+    if (!forecast || !forecast.hours || !forecast.hours.length) return { go: null, best: null };
+    var now = nowTs == null ? Math.floor(Date.now() / 1000) : nowTs;
+    if (now instanceof Date) now = Math.floor(now.getTime() / 1000);
+    if (now > 1e12) now = Math.floor(now / 1000);
+
+    var days = (forecast.days || []).slice(0, 3);
+    var go = null;
+    var best = null;
+
+    for (var d = 0; d < days.length; d++) {
+      var day = days[d];
+      var windows = day.windows || [];
+      for (var w = 0; w < windows.length; w++) {
+        var win = windows[w];
+        if (win.endTs <= now) continue;
+        var goCandidate = {
+          score: win.score,
+          avgScore: win.avgScore,
+          startTs: win.startTs,
+          endTs: win.endTs,
+          ts: win.startTs,
+          isGo: true,
+          verdict: win.verdict,
+          date: win.date
+        };
+        if (!go ||
+          goCandidate.score > go.score ||
+          (goCandidate.score === go.score && goCandidate.startTs < go.startTs)) {
+          go = goCandidate;
+        }
+      }
+
+      var hours = day.hours || [];
+      for (var h = 0; h < hours.length; h++) {
+        var hour = hours[h];
+        if (hour.ts + HOUR <= now) continue;
+        var candidate = {
+          score: hour.score,
+          ts: hour.ts,
+          endTs: hour.ts + HOUR,
+          isGo: false,
+          verdict: hour.verdict,
+          cloudState: hour.cloudState,
+          date: hour.date
+        };
+        if (!best ||
+          candidate.score > best.score ||
+          (candidate.score === best.score && candidate.ts < best.ts)) {
+          best = candidate;
+        }
+      }
+    }
+
+    return { go: go, best: best, generatedAt: forecast.generatedAt || now };
+  }
+
   return {
     version: VERSION,
     evaluateForecast: evaluateForecast,
@@ -1444,6 +1505,7 @@ const LOCATIONS = [
     cloudStateDetail: cloudStateDetail,
     verdictTone: verdictTone,
     verdictHeadline: verdictHeadline,
+    summarizeForecast: summarizeForecast,
     toFeet: toFeet,
     toMiles: toMiles
   };
@@ -1490,6 +1552,21 @@ const LOCATIONS = [
 
   var DAILY = ["sunrise", "sunset"];
 
+  // The bay-wide outlook only needs the variables that feed the score and the
+  // detail sheet. Keeping this list small keeps the 76-point request compact.
+  var BAY_HOURLY = [
+    "temperature_2m",
+    "relative_humidity_2m",
+    "precipitation",
+    "cloud_cover_low",
+    "cloud_cover_mid",
+    "cloud_cover_high",
+    "visibility",
+    "wind_speed_10m",
+    "wind_gusts_10m",
+    "boundary_layer_height"
+  ];
+
   function buildUrl(location, options) {
     options = options || {};
     if (!location || !location.peak || !location.valley) {
@@ -1520,9 +1597,43 @@ const LOCATIONS = [
     return API_BASE + "?" + params.join("&");
   }
 
-  async function fetchForecast(location, options) {
+  function buildBayUrl(locations, options) {
     options = options || {};
-    var url = buildUrl(location, options);
+    if (!Array.isArray(locations) || !locations.length) {
+      throw new Error("buildBayUrl needs at least one location");
+    }
+    var lat = [];
+    var lon = [];
+    for (var i = 0; i < locations.length; i++) {
+      var location = locations[i];
+      if (!location || !location.peak || !location.valley) {
+        throw new Error("Every bay location needs peak and valley coordinates");
+      }
+      lat.push(location.peak.lat, location.valley.lat);
+      lon.push(location.peak.lon, location.valley.lon);
+    }
+
+    var forecastHours = options.forecastHours == null ? 80 : options.forecastHours;
+    var timezone = options.timezone || DEFAULT_TIMEZONE;
+    var params = [
+      "latitude=" + encodeURIComponent(lat.join(",")),
+      "longitude=" + encodeURIComponent(lon.join(",")),
+      "hourly=" + encodeURIComponent(BAY_HOURLY.join(",")),
+      "daily=sunrise",
+      "models=ncep_gfs_seamless",
+      "temperature_unit=fahrenheit",
+      "wind_speed_unit=mph",
+      "precipitation_unit=inch",
+      "timezone=" + encodeURIComponent(timezone),
+      "timeformat=unixtime",
+      "forecast_hours=" + forecastHours
+    ];
+    if (options.pastHours !== false) params.push("past_hours=" + (options.pastHours || 3));
+    return API_BASE + "?" + params.join("&");
+  }
+
+  async function requestJson(url, options) {
+    options = options || {};
     var fetchImpl = options.fetchImpl || (typeof fetch !== "undefined" ? fetch : null);
     if (!fetchImpl) throw new Error("No fetch implementation available");
 
@@ -1550,6 +1661,13 @@ const LOCATIONS = [
 
     var data = await response.json();
     if (data && data.error) throw new Error(data.reason || "Weather API error");
+    return data;
+  }
+
+  async function fetchForecast(location, options) {
+    options = options || {};
+    var url = buildUrl(location, options);
+    var data = await requestJson(url, options);
 
     var series = Array.isArray(data) ? data : [data];
     if (!series[0] || !series[0].hourly) throw new Error("Weather API returned no hourly data");
@@ -1563,13 +1681,45 @@ const LOCATIONS = [
     };
   }
 
+  async function fetchBayForecast(locations, options) {
+    options = options || {};
+    var url = buildBayUrl(locations, options);
+    var data = await requestJson(url, options);
+    var series = Array.isArray(data) ? data : [data];
+    var expected = locations.length * 2;
+    if (series.length < expected) {
+      throw new Error("Weather API returned " + series.length + " of " + expected + " bay points");
+    }
+
+    for (var i = 0; i < expected; i++) {
+      if (!series[i] || !series[i].hourly) {
+        throw new Error("Weather API returned no hourly data for bay point " + i);
+      }
+    }
+
+    return {
+      locations: locations.map(function (location, index) {
+        return {
+          location: location,
+          peak: series[index * 2],
+          valley: series[index * 2 + 1]
+        };
+      }),
+      url: url,
+      fetchedAt: Math.floor(Date.now() / 1000)
+    };
+  }
+
   return {
     API_BASE: API_BASE,
     HOURLY: HOURLY,
+    BAY_HOURLY: BAY_HOURLY,
     DAILY: DAILY,
     DEFAULT_TIMEZONE: DEFAULT_TIMEZONE,
     buildUrl: buildUrl,
-    fetchForecast: fetchForecast
+    buildBayUrl: buildBayUrl,
+    fetchForecast: fetchForecast,
+    fetchBayForecast: fetchBayForecast
   };
 });
 
@@ -1586,6 +1736,7 @@ const LOCATIONS = [
 const APP_URL = "";
 const TIME_ZONE = "America/Los_Angeles";
 const REFRESH_MINUTES = 15;
+const MAX_BAY_ROWS = 10;
 
 const COLORS = {
   ink: "#f2f5ff",
@@ -1675,10 +1826,18 @@ function reasonFor(hour) {
   }
 }
 
+function appBase() {
+  return APP_URL.replace(/[?#].*$/, "").replace(/\/+$/, "");
+}
+
 function appLink(location) {
   if (!APP_URL) return null;
-  const base = APP_URL.replace(/[?#].*$/, "").replace(/\/+$/, "");
-  return base + "/?location=" + encodeURIComponent(location.id);
+  return appBase() + "/?location=" + encodeURIComponent(location.id);
+}
+
+function bayLink() {
+  if (!APP_URL) return null;
+  return appBase() + "/?bay=1";
 }
 
 function paintBackground(widget) {
@@ -1924,6 +2083,118 @@ function buildInline(forecast, location, now) {
   return widget;
 }
 
+function bayTimeLabel(row, now) {
+  if (row.ts <= now && row.endTs > now) {
+    return row.isGo ? "Now–" + CloudInversion.formatTime(row.endTs, TIME_ZONE, true).replace(/\s+/g, "") : "Now";
+  }
+  const label = CloudInversion.formatDayLabel(row.ts, TIME_ZONE, now);
+  const day = label === "Today" ? "Today" : label === "Tomorrow" ? "Tmrw" : label.split(",")[0];
+  const start = CloudInversion.formatTime(row.ts, TIME_ZONE, true).replace(/\s+/g, "");
+  if (!row.isGo) return day + " " + start;
+  const end = CloudInversion.formatTime(row.endTs, TIME_ZONE, true).replace(/\s+/g, "");
+  return day + " " + start + "–" + end;
+}
+
+function bayRow(widget, row, now) {
+  const stack = widget.addStack();
+  stack.layoutHorizontally();
+  stack.centerAlignContent();
+
+  const name = stack.addText(shortName(row.name));
+  name.font = Font.boldSystemFont(10);
+  name.textColor = new Color(COLORS.ink);
+  name.lineLimit = 1;
+  name.minimumScaleFactor = 0.7;
+
+  stack.addSpacer(6);
+
+  const time = stack.addText(bayTimeLabel(row, now));
+  time.font = Font.systemFont(8);
+  time.textColor = new Color(COLORS.muted);
+  time.lineLimit = 1;
+  time.minimumScaleFactor = 0.7;
+
+  stack.addSpacer(7);
+
+  const score = stack.addText(String(row.score));
+  score.font = Font.boldSystemFont(11);
+  score.textColor = toneColor(row.isGo ? "good" : row.score >= 50 ? "maybe" : "no");
+  score.lineLimit = 1;
+
+  return stack;
+}
+
+function buildLarge(rows, meta, now) {
+  const widget = new ListWidget();
+  paintBackground(widget);
+  widget.setPadding(13, 15, 12, 15);
+
+  const goRows = rows.filter((row) => row.isGo);
+  const ranked = rows.slice().sort((a, b) =>
+    b.score - a.score ||
+    a.ts - b.ts ||
+    a.name.localeCompare(b.name)
+  );
+  const visible = goRows.length
+    ? ranked.filter((row) => row.isGo).slice(0, MAX_BAY_ROWS)
+    : ranked.slice(0, 4);
+
+  const header = widget.addStack();
+  header.layoutHorizontally();
+  header.centerAlignContent();
+
+  const brand = header.addText("△  ABOVE THE CLOUDS");
+  brand.font = Font.boldSystemFont(8);
+  brand.textColor = new Color(COLORS.muted);
+
+  header.addSpacer();
+
+  const count = header.addText(goRows.length ? goRows.length + " GO" : "0 GO");
+  count.font = Font.boldSystemFont(8);
+  count.textColor = goRows.length ? new Color(COLORS.good) : new Color(COLORS.muted);
+
+  widget.addSpacer(3);
+
+  const title = widget.addText(goRows.length ? "GOOD WINDOWS" : "CLOSEST CALLS");
+  title.font = Font.boldSystemFont(21);
+  title.textColor = goRows.length ? new Color(COLORS.good) : new Color(COLORS.maybe);
+  title.lineLimit = 1;
+  title.minimumScaleFactor = 0.8;
+
+  const subtitle = widget.addText(
+    goRows.length
+      ? "Next 3 days · strongest outlook first"
+      : "Top 4 single hours · next 3 days"
+  );
+  subtitle.font = Font.systemFont(9);
+  subtitle.textColor = new Color(COLORS.muted);
+
+  widget.addSpacer(8);
+
+  for (const row of visible) {
+    bayRow(widget, row, now);
+    widget.addSpacer(5);
+  }
+
+  widget.addSpacer();
+
+  let footText;
+  if (goRows.length > visible.length) {
+    footText = "Top " + visible.length + " of " + goRows.length + " GO · tap for all";
+  } else if (meta.stale) {
+    footText = "Saved " + CloudInversion.formatTime(meta.savedAt, TIME_ZONE, true) + " · tap for all";
+  } else {
+    footText = "Updated " + CloudInversion.formatTime(meta.savedAt, TIME_ZONE, true) + " · tap for all";
+  }
+
+  const foot = widget.addText(footText);
+  foot.font = Font.systemFont(8);
+  foot.textColor = new Color(COLORS.dim);
+  foot.lineLimit = 1;
+
+  return widget;
+}
+
 function buildError(message) {
   const widget = new ListWidget();
   paintBackground(widget);
@@ -1982,6 +2253,89 @@ function writeCache(locationId, weather) {
   }
 }
 
+function readBayCache() {
+  try {
+    const fm = FileManager.local();
+    const file = fm.joinPath(fm.documentsDirectory(), "atc-bay-summaries.json");
+    if (!fm.fileExists(file)) return null;
+    const cached = JSON.parse(fm.readString(file));
+    if (!cached || !Array.isArray(cached.rows) || !cached.rows.length) return null;
+    return cached;
+  } catch (error) {
+    return null;
+  }
+}
+
+function writeBayCache(rows) {
+  try {
+    const fm = FileManager.local();
+    const file = fm.joinPath(fm.documentsDirectory(), "atc-bay-summaries.json");
+    fm.writeString(file, JSON.stringify({ savedAt: Date.now(), rows: rows }));
+  } catch (error) {
+    // A read-only container just means no offline cache.
+  }
+}
+
+async function loadBayDashboard(now) {
+  try {
+    const bay = await CloudWeather.fetchBayForecast(LOCATIONS, {
+      forecastHours: 80,
+      timeoutMs: false,
+      fetchImpl: async function (url) {
+        const request = new Request(url);
+        request.timeoutInterval = 30;
+        const data = await request.loadJSON();
+        return {
+          ok: true,
+          status: 200,
+          json: async function () {
+            return data;
+          }
+        };
+      }
+    });
+
+    const rows = [];
+    for (const item of bay.locations) {
+      try {
+        const forecast = CloudInversion.evaluateForecast({
+          peak: item.peak,
+          valley: item.valley,
+          location: item.location,
+          now: now,
+          timezone: TIME_ZONE
+        });
+        const summary = CloudInversion.summarizeForecast(forecast, now);
+        const chosen = summary.go || summary.best;
+        if (!chosen) continue;
+        rows.push({
+          id: item.location.id,
+          name: item.location.name,
+          score: chosen.score,
+          ts: chosen.ts,
+          endTs: chosen.endTs,
+          isGo: Boolean(summary.go)
+        });
+      } catch (error) {
+        // Skip one bad location rather than losing the whole dashboard.
+      }
+    }
+    if (!rows.length) throw new Error("No bay outlooks could be computed");
+    writeBayCache(rows);
+    return { rows: rows, stale: false, savedAt: Math.floor(Date.now() / 1000) };
+  } catch (error) {
+    const cached = readBayCache();
+    if (cached) {
+      return {
+        rows: cached.rows,
+        stale: true,
+        savedAt: Math.floor(cached.savedAt / 1000)
+      };
+    }
+    throw error;
+  }
+}
+
 async function loadForecast(location, now) {
   try {
     const weather = await CloudWeather.fetchForecast(location, {
@@ -2027,33 +2381,48 @@ async function main() {
   const now = Math.floor(Date.now() / 1000);
   let widget;
 
-  try {
-    const result = await loadForecast(location, now);
-    const forecast = result.forecast;
-
-    if (family === "accessoryInline") {
-      widget = buildInline(forecast, location, now);
-    } else if (family === "accessoryCircular") {
-      widget = buildCircular(forecast);
-    } else if (family === "accessoryRectangular") {
-      widget = buildRectangular(forecast, location, now, result.stale);
-    } else if (family === "small") {
-      widget = buildSmall(forecast, location, now, result.stale);
-    } else {
-      widget = buildMedium(forecast, location, now, result.stale);
+  if (family === "large") {
+    try {
+      const result = await loadBayDashboard(now);
+      widget = buildLarge(result.rows, { stale: result.stale, savedAt: result.savedAt }, now);
+    } catch (error) {
+      widget = buildError("Couldn't reach Open-Meteo.\n" + (error && error.message ? error.message : "Check your connection."));
     }
-
-    const link = appLink(location);
+    const link = bayLink();
     if (link) widget.url = link;
     widget.refreshAfterDate = new Date(Date.now() + REFRESH_MINUTES * 60 * 1000);
-  } catch (error) {
-    widget = buildError("Couldn't reach Open-Meteo.\n" + (error && error.message ? error.message : "Check your connection."));
-    const link = appLink(location);
-    if (link) widget.url = link;
+  } else {
+    try {
+      const result = await loadForecast(location, now);
+      const forecast = result.forecast;
+
+      if (family === "accessoryInline") {
+        widget = buildInline(forecast, location, now);
+      } else if (family === "accessoryCircular") {
+        widget = buildCircular(forecast);
+      } else if (family === "accessoryRectangular") {
+        widget = buildRectangular(forecast, location, now, result.stale);
+      } else if (family === "small") {
+        widget = buildSmall(forecast, location, now, result.stale);
+      } else {
+        widget = buildMedium(forecast, location, now, result.stale);
+      }
+
+      const link = appLink(location);
+      if (link) widget.url = link;
+      widget.refreshAfterDate = new Date(Date.now() + REFRESH_MINUTES * 60 * 1000);
+    } catch (error) {
+      widget = buildError("Couldn't reach Open-Meteo.\n" + (error && error.message ? error.message : "Check your connection."));
+      const link = appLink(location);
+      if (link) widget.url = link;
+      widget.refreshAfterDate = new Date(Date.now() + REFRESH_MINUTES * 60 * 1000);
+    }
   }
 
   if (config.runsInWidget) {
     Script.setWidget(widget);
+  } else if (family === "large") {
+    await widget.presentLarge();
   } else if (family === "small") {
     await widget.presentSmall();
   } else if (family === "accessoryCircular") {

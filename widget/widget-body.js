@@ -11,6 +11,7 @@
 const APP_URL = "";
 const TIME_ZONE = "America/Los_Angeles";
 const REFRESH_MINUTES = 15;
+const MAX_BAY_ROWS = 10;
 
 const COLORS = {
   ink: "#f2f5ff",
@@ -100,10 +101,18 @@ function reasonFor(hour) {
   }
 }
 
+function appBase() {
+  return APP_URL.replace(/[?#].*$/, "").replace(/\/+$/, "");
+}
+
 function appLink(location) {
   if (!APP_URL) return null;
-  const base = APP_URL.replace(/[?#].*$/, "").replace(/\/+$/, "");
-  return base + "/?location=" + encodeURIComponent(location.id);
+  return appBase() + "/?location=" + encodeURIComponent(location.id);
+}
+
+function bayLink() {
+  if (!APP_URL) return null;
+  return appBase() + "/?bay=1";
 }
 
 function paintBackground(widget) {
@@ -349,6 +358,118 @@ function buildInline(forecast, location, now) {
   return widget;
 }
 
+function bayTimeLabel(row, now) {
+  if (row.ts <= now && row.endTs > now) {
+    return row.isGo ? "Now–" + CloudInversion.formatTime(row.endTs, TIME_ZONE, true).replace(/\s+/g, "") : "Now";
+  }
+  const label = CloudInversion.formatDayLabel(row.ts, TIME_ZONE, now);
+  const day = label === "Today" ? "Today" : label === "Tomorrow" ? "Tmrw" : label.split(",")[0];
+  const start = CloudInversion.formatTime(row.ts, TIME_ZONE, true).replace(/\s+/g, "");
+  if (!row.isGo) return day + " " + start;
+  const end = CloudInversion.formatTime(row.endTs, TIME_ZONE, true).replace(/\s+/g, "");
+  return day + " " + start + "–" + end;
+}
+
+function bayRow(widget, row, now) {
+  const stack = widget.addStack();
+  stack.layoutHorizontally();
+  stack.centerAlignContent();
+
+  const name = stack.addText(shortName(row.name));
+  name.font = Font.boldSystemFont(10);
+  name.textColor = new Color(COLORS.ink);
+  name.lineLimit = 1;
+  name.minimumScaleFactor = 0.7;
+
+  stack.addSpacer(6);
+
+  const time = stack.addText(bayTimeLabel(row, now));
+  time.font = Font.systemFont(8);
+  time.textColor = new Color(COLORS.muted);
+  time.lineLimit = 1;
+  time.minimumScaleFactor = 0.7;
+
+  stack.addSpacer(7);
+
+  const score = stack.addText(String(row.score));
+  score.font = Font.boldSystemFont(11);
+  score.textColor = toneColor(row.isGo ? "good" : row.score >= 50 ? "maybe" : "no");
+  score.lineLimit = 1;
+
+  return stack;
+}
+
+function buildLarge(rows, meta, now) {
+  const widget = new ListWidget();
+  paintBackground(widget);
+  widget.setPadding(13, 15, 12, 15);
+
+  const goRows = rows.filter((row) => row.isGo);
+  const ranked = rows.slice().sort((a, b) =>
+    b.score - a.score ||
+    a.ts - b.ts ||
+    a.name.localeCompare(b.name)
+  );
+  const visible = goRows.length
+    ? ranked.filter((row) => row.isGo).slice(0, MAX_BAY_ROWS)
+    : ranked.slice(0, 4);
+
+  const header = widget.addStack();
+  header.layoutHorizontally();
+  header.centerAlignContent();
+
+  const brand = header.addText("△  ABOVE THE CLOUDS");
+  brand.font = Font.boldSystemFont(8);
+  brand.textColor = new Color(COLORS.muted);
+
+  header.addSpacer();
+
+  const count = header.addText(goRows.length ? goRows.length + " GO" : "0 GO");
+  count.font = Font.boldSystemFont(8);
+  count.textColor = goRows.length ? new Color(COLORS.good) : new Color(COLORS.muted);
+
+  widget.addSpacer(3);
+
+  const title = widget.addText(goRows.length ? "GOOD WINDOWS" : "CLOSEST CALLS");
+  title.font = Font.boldSystemFont(21);
+  title.textColor = goRows.length ? new Color(COLORS.good) : new Color(COLORS.maybe);
+  title.lineLimit = 1;
+  title.minimumScaleFactor = 0.8;
+
+  const subtitle = widget.addText(
+    goRows.length
+      ? "Next 3 days · strongest outlook first"
+      : "Top 4 single hours · next 3 days"
+  );
+  subtitle.font = Font.systemFont(9);
+  subtitle.textColor = new Color(COLORS.muted);
+
+  widget.addSpacer(8);
+
+  for (const row of visible) {
+    bayRow(widget, row, now);
+    widget.addSpacer(5);
+  }
+
+  widget.addSpacer();
+
+  let footText;
+  if (goRows.length > visible.length) {
+    footText = "Top " + visible.length + " of " + goRows.length + " GO · tap for all";
+  } else if (meta.stale) {
+    footText = "Saved " + CloudInversion.formatTime(meta.savedAt, TIME_ZONE, true) + " · tap for all";
+  } else {
+    footText = "Updated " + CloudInversion.formatTime(meta.savedAt, TIME_ZONE, true) + " · tap for all";
+  }
+
+  const foot = widget.addText(footText);
+  foot.font = Font.systemFont(8);
+  foot.textColor = new Color(COLORS.dim);
+  foot.lineLimit = 1;
+
+  return widget;
+}
+
 function buildError(message) {
   const widget = new ListWidget();
   paintBackground(widget);
@@ -407,6 +528,89 @@ function writeCache(locationId, weather) {
   }
 }
 
+function readBayCache() {
+  try {
+    const fm = FileManager.local();
+    const file = fm.joinPath(fm.documentsDirectory(), "atc-bay-summaries.json");
+    if (!fm.fileExists(file)) return null;
+    const cached = JSON.parse(fm.readString(file));
+    if (!cached || !Array.isArray(cached.rows) || !cached.rows.length) return null;
+    return cached;
+  } catch (error) {
+    return null;
+  }
+}
+
+function writeBayCache(rows) {
+  try {
+    const fm = FileManager.local();
+    const file = fm.joinPath(fm.documentsDirectory(), "atc-bay-summaries.json");
+    fm.writeString(file, JSON.stringify({ savedAt: Date.now(), rows: rows }));
+  } catch (error) {
+    // A read-only container just means no offline cache.
+  }
+}
+
+async function loadBayDashboard(now) {
+  try {
+    const bay = await CloudWeather.fetchBayForecast(LOCATIONS, {
+      forecastHours: 80,
+      timeoutMs: false,
+      fetchImpl: async function (url) {
+        const request = new Request(url);
+        request.timeoutInterval = 30;
+        const data = await request.loadJSON();
+        return {
+          ok: true,
+          status: 200,
+          json: async function () {
+            return data;
+          }
+        };
+      }
+    });
+
+    const rows = [];
+    for (const item of bay.locations) {
+      try {
+        const forecast = CloudInversion.evaluateForecast({
+          peak: item.peak,
+          valley: item.valley,
+          location: item.location,
+          now: now,
+          timezone: TIME_ZONE
+        });
+        const summary = CloudInversion.summarizeForecast(forecast, now);
+        const chosen = summary.go || summary.best;
+        if (!chosen) continue;
+        rows.push({
+          id: item.location.id,
+          name: item.location.name,
+          score: chosen.score,
+          ts: chosen.ts,
+          endTs: chosen.endTs,
+          isGo: Boolean(summary.go)
+        });
+      } catch (error) {
+        // Skip one bad location rather than losing the whole dashboard.
+      }
+    }
+    if (!rows.length) throw new Error("No bay outlooks could be computed");
+    writeBayCache(rows);
+    return { rows: rows, stale: false, savedAt: Math.floor(Date.now() / 1000) };
+  } catch (error) {
+    const cached = readBayCache();
+    if (cached) {
+      return {
+        rows: cached.rows,
+        stale: true,
+        savedAt: Math.floor(cached.savedAt / 1000)
+      };
+    }
+    throw error;
+  }
+}
+
 async function loadForecast(location, now) {
   try {
     const weather = await CloudWeather.fetchForecast(location, {
@@ -452,33 +656,48 @@ async function main() {
   const now = Math.floor(Date.now() / 1000);
   let widget;
 
-  try {
-    const result = await loadForecast(location, now);
-    const forecast = result.forecast;
-
-    if (family === "accessoryInline") {
-      widget = buildInline(forecast, location, now);
-    } else if (family === "accessoryCircular") {
-      widget = buildCircular(forecast);
-    } else if (family === "accessoryRectangular") {
-      widget = buildRectangular(forecast, location, now, result.stale);
-    } else if (family === "small") {
-      widget = buildSmall(forecast, location, now, result.stale);
-    } else {
-      widget = buildMedium(forecast, location, now, result.stale);
+  if (family === "large") {
+    try {
+      const result = await loadBayDashboard(now);
+      widget = buildLarge(result.rows, { stale: result.stale, savedAt: result.savedAt }, now);
+    } catch (error) {
+      widget = buildError("Couldn't reach Open-Meteo.\n" + (error && error.message ? error.message : "Check your connection."));
     }
-
-    const link = appLink(location);
+    const link = bayLink();
     if (link) widget.url = link;
     widget.refreshAfterDate = new Date(Date.now() + REFRESH_MINUTES * 60 * 1000);
-  } catch (error) {
-    widget = buildError("Couldn't reach Open-Meteo.\n" + (error && error.message ? error.message : "Check your connection."));
-    const link = appLink(location);
-    if (link) widget.url = link;
+  } else {
+    try {
+      const result = await loadForecast(location, now);
+      const forecast = result.forecast;
+
+      if (family === "accessoryInline") {
+        widget = buildInline(forecast, location, now);
+      } else if (family === "accessoryCircular") {
+        widget = buildCircular(forecast);
+      } else if (family === "accessoryRectangular") {
+        widget = buildRectangular(forecast, location, now, result.stale);
+      } else if (family === "small") {
+        widget = buildSmall(forecast, location, now, result.stale);
+      } else {
+        widget = buildMedium(forecast, location, now, result.stale);
+      }
+
+      const link = appLink(location);
+      if (link) widget.url = link;
+      widget.refreshAfterDate = new Date(Date.now() + REFRESH_MINUTES * 60 * 1000);
+    } catch (error) {
+      widget = buildError("Couldn't reach Open-Meteo.\n" + (error && error.message ? error.message : "Check your connection."));
+      const link = appLink(location);
+      if (link) widget.url = link;
+      widget.refreshAfterDate = new Date(Date.now() + REFRESH_MINUTES * 60 * 1000);
+    }
   }
 
   if (config.runsInWidget) {
     Script.setWidget(widget);
+  } else if (family === "large") {
+    await widget.presentLarge();
   } else if (family === "small") {
     await widget.presentSmall();
   } else if (family === "accessoryCircular") {

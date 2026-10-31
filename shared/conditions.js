@@ -760,6 +760,67 @@
     }
   }
 
+  // Compact "what is the best shot in the next three outlook days?" summary.
+  // `go` is the strongest GO window, while `best` is the strongest individual
+  // future hour when no GO window exists. Both are useful to the bay-wide
+  // picker and the large iPhone widget.
+  function summarizeForecast(forecast, nowTs) {
+    if (!forecast || !forecast.hours || !forecast.hours.length) return { go: null, best: null };
+    var now = nowTs == null ? Math.floor(Date.now() / 1000) : nowTs;
+    if (now instanceof Date) now = Math.floor(now.getTime() / 1000);
+    if (now > 1e12) now = Math.floor(now / 1000);
+
+    var days = (forecast.days || []).slice(0, 3);
+    var go = null;
+    var best = null;
+
+    for (var d = 0; d < days.length; d++) {
+      var day = days[d];
+      var windows = day.windows || [];
+      for (var w = 0; w < windows.length; w++) {
+        var win = windows[w];
+        if (win.endTs <= now) continue;
+        var goCandidate = {
+          score: win.score,
+          avgScore: win.avgScore,
+          startTs: win.startTs,
+          endTs: win.endTs,
+          ts: win.startTs,
+          isGo: true,
+          verdict: win.verdict,
+          date: win.date
+        };
+        if (!go ||
+          goCandidate.score > go.score ||
+          (goCandidate.score === go.score && goCandidate.startTs < go.startTs)) {
+          go = goCandidate;
+        }
+      }
+
+      var hours = day.hours || [];
+      for (var h = 0; h < hours.length; h++) {
+        var hour = hours[h];
+        if (hour.ts + HOUR <= now) continue;
+        var candidate = {
+          score: hour.score,
+          ts: hour.ts,
+          endTs: hour.ts + HOUR,
+          isGo: false,
+          verdict: hour.verdict,
+          cloudState: hour.cloudState,
+          date: hour.date
+        };
+        if (!best ||
+          candidate.score > best.score ||
+          (candidate.score === best.score && candidate.ts < best.ts)) {
+          best = candidate;
+        }
+      }
+    }
+
+    return { go: go, best: best, generatedAt: forecast.generatedAt || now };
+  }
+
   return {
     version: VERSION,
     evaluateForecast: evaluateForecast,
@@ -772,6 +833,7 @@
     cloudStateDetail: cloudStateDetail,
     verdictTone: verdictTone,
     verdictHeadline: verdictHeadline,
+    summarizeForecast: summarizeForecast,
     toFeet: toFeet,
     toMiles: toMiles
   };

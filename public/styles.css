@@ -1365,6 +1365,47 @@ svg {
   color: var(--muted-2);
 }
 
+.location-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: -4px 0 9px;
+}
+
+.segmented {
+  display: inline-flex;
+  padding: 2px;
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+.segmented button {
+  min-height: 28px;
+  padding: 5px 9px;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 650;
+  background: none;
+  border: 0;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.segmented button[aria-pressed="true"] {
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.09);
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.16);
+}
+
+.location-status {
+  margin-left: auto;
+  color: var(--muted-2);
+  font-size: 9.5px;
+  white-space: nowrap;
+}
+
 .location-group {
   margin-bottom: 17px;
 }
@@ -1381,9 +1422,10 @@ svg {
 .location-item {
   display: flex;
   align-items: center;
-  gap: 11px;
+  gap: 9px;
   width: 100%;
-  padding: 10px 8px;
+  min-height: 54px;
+  padding: 8px 8px;
   color: var(--ink);
   text-align: left;
   background: none;
@@ -1432,6 +1474,7 @@ svg {
 
 .loc-copy {
   display: flex;
+  flex: 1 1 auto;
   flex-direction: column;
   gap: 1px;
   min-width: 0;
@@ -1454,10 +1497,67 @@ svg {
   text-overflow: ellipsis;
 }
 
-.loc-elev {
+.loc-side {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1px;
   margin-left: auto;
+}
+
+.loc-side-top {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.loc-elev {
+  color: var(--muted-2);
+  font-size: 9.5px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.loc-score {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 25px;
+  height: 18px;
+  padding: 0 4px;
   color: var(--muted);
   font-size: 10.5px;
+  font-weight: 720;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  background: rgba(255, 255, 255, 0.055);
+  border-radius: 6px;
+}
+
+.loc-score[data-tone="good"] {
+  color: #8ef7e4;
+  background: rgba(94, 234, 212, 0.13);
+}
+
+.loc-score[data-tone="maybe"] {
+  color: var(--maybe);
+  background: rgba(251, 191, 36, 0.12);
+}
+
+.loc-score[data-tone="no"] {
+  color: var(--no);
+  background: rgba(251, 113, 133, 0.11);
+}
+
+.loc-score[data-tone="empty"] {
+  color: var(--muted-2);
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.loc-time {
+  color: var(--muted-2);
+  font-size: 9.5px;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }

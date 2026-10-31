@@ -5,6 +5,7 @@
   var TZ = "America/Los_Angeles";
   var SETTINGS_KEY = "atc:settings:v1";
   var CACHE_KEY = "atc:cache:v1";
+  var SUMMARY_KEY = "atc:summaries:v1";
   var REFRESH_MS = 15 * 60 * 1000;
 
   var FALLBACK_LOCATION = {
@@ -26,6 +27,15 @@
     stale: false,
     lastUpdated: null,
     forecastRequest: 0,
+    summaries: {},
+    summarySavedAt: null,
+    summaryLoading: false,
+    summaryStale: false,
+    summaryError: null,
+    summaryPromise: null,
+    bayWeather: null,
+    bayWeatherSavedAt: null,
+    openBayOnInit: false,
     settings: null,
     openSheet: null,
     lastFocus: null,
@@ -151,7 +161,8 @@
       locationId: "boccardo-peak",
       ntfyTopic: "",
       onboardingDone: false,
-      threshold: 70
+      threshold: 70,
+      locationSort: "best"
     };
   }
 
@@ -220,6 +231,40 @@
     return cached ? cached.forecast : null;
   }
 
+  function readSummaryCache() {
+    try {
+      var raw = localStorage.getItem(SUMMARY_KEY);
+      if (!raw) return null;
+      var saved = JSON.parse(raw);
+      if (!saved || !saved.byLocation || typeof saved.byLocation !== "object") return null;
+      return {
+        byLocation: saved.byLocation,
+        savedAt: saved.savedAt || null
+      };
+    } catch (err) {
+      return null;
+    }
+  }
+
+  function saveSummaryCache() {
+    try {
+      localStorage.setItem(SUMMARY_KEY, JSON.stringify({
+        savedAt: state.summarySavedAt,
+        byLocation: state.summaries
+      }));
+    } catch (err) {
+      // The picker still works for this session if storage is full.
+    }
+  }
+
+  function activeSummary(id) {
+    var summary = state.summaries[id];
+    if (!summary || summary.score == null || !summary.ts) return null;
+    var now = Math.floor(Date.now() / 1000);
+    if (summary.endTs && summary.endTs <= now) return null;
+    return summary;
+  }
+
   // ---------------------------------------------------------------------------
   // Boot
   // ---------------------------------------------------------------------------
@@ -231,18 +276,33 @@
     state.settings = loadSettings();
 
     var params = new URLSearchParams(window.location.search);
-    if (params.get("location")) {
-      state.settings.locationId = params.get("location");
+    var linkedLocation = params.get("location");
+    if (linkedLocation) {
+      state.settings.locationId = linkedLocation;
       state.fromLink = true;
-      // Consume the deep-link parameter so a later manual location change is
-      // not undone when the page is reloaded from the same URL.
+    }
+    if (params.get("bay") === "1") {
+      state.fromLink = true;
+      state.openBayOnInit = true;
+    }
+    if (linkedLocation || state.openBayOnInit) {
+      // Consume deep-link parameters so a later manual location change is not
+      // undone when the page is reloaded from the same URL.
       try {
         params.delete("location");
+        params.delete("bay");
         var query = params.toString();
         history.replaceState(null, "", window.location.pathname + (query ? "?" + query : "") + window.location.hash);
       } catch (err) {
         // Some locked-down browsers do not allow history updates.
       }
+    }
+
+    var cachedSummaries = readSummaryCache();
+    if (cachedSummaries) {
+      state.summaries = cachedSummaries.byLocation;
+      state.summarySavedAt = cachedSummaries.savedAt;
+      state.summaryStale = true;
     }
 
     bindEvents();
@@ -257,7 +317,17 @@
       saveSettings();
       renderLocationHeader();
       renderLocationList();
+      renderLocationStatus();
       renderSettingsValues();
+
+      if (state.openBayOnInit) {
+        state.openBayOnInit = false;
+        openSheet(dom.locationSheet);
+      }
+
+      // Compute the whole bay's 3-day outlook in one bulk Open-Meteo request.
+      // This runs in the background so the selected peak still paints fast.
+      loadBaySummaries();
 
       // Show the last good forecast immediately, then refresh in the
       // background. A cold phone launch should never wait on the network
@@ -288,7 +358,7 @@
       "timeline", "timelineRefreshBtn", "sunriseLabel", "scoreNote",
       "whyGrid", "outlook", "updatedAt",
       "sheetBackdrop", "locationSheet", "settingsSheet", "detailSheet",
-      "locationSearch", "locationList", "useLocationBtn", "settingsLocationBtn",
+      "locationSearch", "locationList", "useLocationBtn", "locationSort", "locationStatus", "settingsLocationBtn",
       "settingsLocationName", "settingsLocationMeta", "ntfyTopic",
       "generateTopicBtn", "copyTopicBtn", "testNotifyBtn", "copyWidgetBtn",
       "replayOnboardingBtn", "detailEyebrow", "detailSheetTitle", "detailBody",
@@ -327,40 +397,136 @@
     dom.settingsLocationMeta.textContent = loc.peak.elevationFt.toLocaleString() + " ft · " + loc.valley.name;
   }
 
+  function formatSummaryTime(summary) {
+    var now = Math.floor(Date.now() / 1000);
+    if (summary.ts <= now && summary.endTs > now) {
+      return summary.isGo ? "Now–" + CloudInversion.formatTime(summary.endTs, TZ, true) : "Now";
+    }
+    var day = CloudInversion.formatDayLabel(summary.ts, TZ, now);
+    var shortDay = day === "Today" ? "Today" : day === "Tomorrow" ? "Tmrw" : day.split(",")[0];
+    var start = CloudInversion.formatTime(summary.ts, TZ, true);
+    var range = summary.isGo && summary.endTs
+      ? "–" + CloudInversion.formatTime(summary.endTs, TZ, true)
+      : "";
+    return shortDay + " " + start + range;
+  }
+
+  function locationRow(loc, showRegion) {
+    var selected = state.location && loc.id === state.location.id;
+    var summary = activeSummary(loc.id);
+    var tone = summary
+      ? summary.isGo ? "good" : summary.score >= 50 ? "maybe" : "no"
+      : "empty";
+    var time = summary ? formatSummaryTime(summary) : state.summaryLoading ? "…" : "—";
+    var sub = showRegion
+      ? loc.region + " · " + (loc.notes || loc.valley.name)
+      : loc.notes || loc.valley.name;
+    var aria = loc.name + ", " + loc.peak.elevationFt.toLocaleString() + " feet. " +
+      (summary
+        ? (summary.isGo ? "GO window" : "Best chance") + " " + summary.score + " out of 100, " + time + "."
+        : "Outlook loading.");
+
+    return '<button class="location-item' + (selected ? " is-selected" : "") + '" type="button" data-id="' + escapeHtml(loc.id) + '" aria-label="' + escapeHtml(aria) + '">' +
+      '<span class="loc-check"><svg><use href="#i-check"></use></svg></span>' +
+      '<span class="loc-copy"><strong>' + escapeHtml(loc.name) + "</strong><small>" + escapeHtml(sub) + "</small></span>" +
+      '<span class="loc-side">' +
+        '<span class="loc-side-top">' +
+          '<span class="loc-score" data-tone="' + tone + '">' + (summary ? summary.score : "—") + "</span>" +
+          '<span class="loc-elev">' + loc.peak.elevationFt.toLocaleString() + " ft</span>" +
+        "</span>" +
+        '<span class="loc-time">' + escapeHtml(time) + "</span>" +
+      "</span>" +
+      "</button>";
+  }
+
+  function compareLocationsByOutlook(a, b) {
+    var aSummary = activeSummary(a.id);
+    var bSummary = activeSummary(b.id);
+    var aScore = aSummary ? aSummary.score : -1;
+    var bScore = bSummary ? bSummary.score : -1;
+    if (aScore !== bScore) return bScore - aScore;
+    var aTs = aSummary ? aSummary.ts : Number.MAX_SAFE_INTEGER;
+    var bTs = bSummary ? bSummary.ts : Number.MAX_SAFE_INTEGER;
+    if (aTs !== bTs) return aTs - bTs;
+    return a.name.localeCompare(b.name);
+  }
+
+  function renderLocationSort() {
+    if (!dom.locationSort) return;
+    var sort = state.settings.locationSort === "region" ? "region" : "best";
+    dom.locationSort.querySelectorAll("button[data-sort]").forEach(function (button) {
+      button.setAttribute("aria-pressed", button.dataset.sort === sort ? "true" : "false");
+    });
+  }
+
+  function renderLocationStatus() {
+    if (!dom.locationStatus) return;
+    var count = Object.keys(state.summaries).length;
+    var total = state.locations.length || 38;
+    var goCount = state.locations.reduce(function (sum, loc) {
+      var summary = activeSummary(loc.id);
+      return sum + (summary && summary.isGo ? 1 : 0);
+    }, 0);
+    var stamp = state.summarySavedAt ? formatClock(state.summarySavedAt) : "";
+
+    if (state.summaryLoading) {
+      dom.locationStatus.textContent = count ? "Refreshing bay outlook…" : "Computing " + total + " peaks…";
+      return;
+    }
+    if (!count) {
+      dom.locationStatus.textContent = state.summaryError ? "Bay outlook unavailable" : "Bay outlook not loaded";
+      return;
+    }
+    dom.locationStatus.textContent =
+      goCount + " GO · " +
+      count + " peaks · " +
+      (state.summaryStale ? "saved " : "") +
+      stamp;
+  }
+
   function renderLocationList(query) {
     var filter = String(query || "").trim().toLowerCase();
-    var groups = {};
-    var order = [];
-
-    state.locations.forEach(function (loc) {
+    var matches = state.locations.filter(function (loc) {
       var haystack = [loc.name, loc.region, loc.valley && loc.valley.name, loc.notes].join(" ").toLowerCase();
-      if (filter && haystack.indexOf(filter) === -1) return;
-      if (!groups[loc.region]) {
-        groups[loc.region] = [];
-        order.push(loc.region);
-      }
-      groups[loc.region].push(loc);
+      return !filter || haystack.indexOf(filter) !== -1;
     });
 
-    if (!order.length) {
+    if (!matches.length) {
       dom.locationList.innerHTML = '<div class="empty-locations">No peaks match “' + escapeHtml(query) + '”.</div>';
+      renderLocationSort();
       return;
     }
 
+    var sort = state.settings.locationSort === "region" ? "region" : "best";
     var html = "";
-    order.forEach(function (region) {
-      html += '<div class="location-group"><h3>' + escapeHtml(region) + "</h3>";
-      groups[region].forEach(function (loc) {
-        var selected = state.location && loc.id === state.location.id;
-        html += '<button class="location-item' + (selected ? " is-selected" : "") + '" type="button" data-id="' + escapeHtml(loc.id) + '">' +
-          '<span class="loc-check"><svg><use href="#i-check"></use></svg></span>' +
-          '<span class="loc-copy"><strong>' + escapeHtml(loc.name) + "</strong><small>" + escapeHtml(loc.notes || loc.valley.name) + "</small></span>" +
-          '<span class="loc-elev">' + loc.peak.elevationFt.toLocaleString() + " ft</span>" +
-          "</button>";
+    if (sort === "best") {
+      matches.sort(compareLocationsByOutlook);
+      html += '<div class="location-group"><h3>' + (filter ? "Best matches" : "Best 3-day chance") + "</h3>";
+      matches.forEach(function (loc) {
+        html += locationRow(loc, true);
       });
       html += "</div>";
-    });
+    } else {
+      var groups = {};
+      var order = [];
+      matches.forEach(function (loc) {
+        if (!groups[loc.region]) {
+          groups[loc.region] = [];
+          order.push(loc.region);
+        }
+        groups[loc.region].push(loc);
+      });
+      order.forEach(function (region) {
+        html += '<div class="location-group"><h3>' + escapeHtml(region) + "</h3>";
+        groups[region].forEach(function (loc) {
+          html += locationRow(loc, false);
+        });
+        html += "</div>";
+      });
+    }
+
     dom.locationList.innerHTML = html;
+    renderLocationSort();
   }
 
   async function selectLocation(id) {
@@ -377,7 +543,7 @@
     renderLocationList(dom.locationSearch ? dom.locationSearch.value : "");
     closeAllSheets();
     window.scrollTo({ top: 0, behavior: "smooth" });
-    await loadForecast();
+    if (!applyBayForecast(id)) await loadForecast();
   }
 
   function useMyLocation() {
@@ -470,6 +636,101 @@
     } finally {
       if (requestId === state.forecastRequest) setRefreshing(false);
     }
+  }
+
+  function applyBayForecast(locationId) {
+    var raw = state.bayWeather && state.bayWeather[locationId];
+    if (!raw) return false;
+    try {
+      var forecast = CloudInversion.evaluateForecast({
+        peak: raw.peak,
+        valley: raw.valley,
+        location: state.location,
+        now: Math.floor(Date.now() / 1000),
+        timezone: TZ,
+        threshold: state.settings.threshold
+      });
+      // Invalidate any slower single-location request that may still be in
+      // flight from a previous selection.
+      state.forecastRequest += 1;
+      state.forecast = forecast;
+      state.weather = raw;
+      state.lastUpdated = state.bayWeatherSavedAt || Date.now();
+      state.stale = false;
+      state.error = null;
+      state.loading = false;
+      cacheForecast(raw, forecast);
+      renderAll();
+      return true;
+    } catch (err) {
+      return false;
+    }
+  }
+
+  function loadBaySummaries() {
+    if (!state.locations.length) return Promise.resolve();
+    if (state.summaryPromise) return state.summaryPromise;
+
+    state.summaryLoading = true;
+    state.summaryError = null;
+    renderLocationStatus();
+
+    state.summaryPromise = CloudWeather.fetchBayForecast(state.locations, { forecastHours: 80 })
+      .then(function (bay) {
+        var now = Math.floor(Date.now() / 1000);
+        var byLocation = {};
+        var bayWeather = {};
+        bay.locations.forEach(function (item) {
+          bayWeather[item.location.id] = { peak: item.peak, valley: item.valley };
+          try {
+            var forecast = CloudInversion.evaluateForecast({
+              peak: item.peak,
+              valley: item.valley,
+              location: item.location,
+              now: now,
+              timezone: TZ,
+              threshold: state.settings.threshold
+            });
+            var summary = CloudInversion.summarizeForecast(forecast, now);
+            var chosen = summary.go || summary.best;
+            if (!chosen) return;
+            byLocation[item.location.id] = {
+              score: chosen.score,
+              ts: chosen.ts,
+              endTs: chosen.endTs,
+              isGo: Boolean(summary.go)
+            };
+          } catch (err) {
+            // One unusual forecast location should not blank the whole list.
+          }
+        });
+        if (!Object.keys(byLocation).length) throw new Error("No bay outlooks could be computed");
+        state.summaries = byLocation;
+        state.bayWeather = bayWeather;
+        state.bayWeatherSavedAt = Date.now();
+        state.summarySavedAt = Date.now();
+        state.summaryStale = false;
+        state.summaryError = null;
+        saveSummaryCache();
+        if (state.openSheet === dom.locationSheet) renderLocationList(dom.locationSearch.value);
+      })
+      .catch(function (err) {
+        state.summaryError = err;
+        if (state.summarySavedAt) state.summaryStale = true;
+      })
+      .then(function () {
+        state.summaryLoading = false;
+        state.summaryPromise = null;
+        renderLocationStatus();
+        if (state.openSheet === dom.locationSheet) renderLocationList(dom.locationSearch.value);
+      });
+
+    return state.summaryPromise;
+  }
+
+  function refreshAll(options) {
+    loadForecast(options);
+    loadBaySummaries();
   }
 
   function setRefreshing(isRefreshing) {
@@ -790,7 +1051,7 @@
     dom.heroCopy.textContent = "The weather service didn't answer. Check your connection and try again.";
     dom.heroStats.innerHTML = '<button class="button button--soft" id="retryBtn" type="button">Try again</button>';
     var retry = $("retryBtn");
-    if (retry) retry.addEventListener("click", function () { loadForecast(); });
+    if (retry) retry.addEventListener("click", function () { refreshAll(); });
 
     dom.windowCard.dataset.tone = "no";
     dom.windowEyebrow.textContent = "Forecast unavailable";
@@ -1071,8 +1332,8 @@
   // ---------------------------------------------------------------------------
 
   function bindEvents() {
-    dom.refreshBtn.addEventListener("click", function () { loadForecast({ toast: true }); });
-    dom.timelineRefreshBtn.addEventListener("click", function () { loadForecast({ toast: true }); });
+    dom.refreshBtn.addEventListener("click", function () { refreshAll({ toast: true }); });
+    dom.timelineRefreshBtn.addEventListener("click", function () { refreshAll({ toast: true }); });
     dom.settingsBtn.addEventListener("click", function () { openSheet(dom.settingsSheet); });
     dom.alertBtn.addEventListener("click", function () {
       openSheet(dom.settingsSheet);
@@ -1081,12 +1342,21 @@
 
     dom.locationBtn.addEventListener("click", function () {
       renderLocationList(dom.locationSearch.value);
+      renderLocationStatus();
       openSheet(dom.locationSheet);
     });
     dom.settingsLocationBtn.addEventListener("click", function () {
       closeSheet(dom.settingsSheet);
       renderLocationList("");
+      renderLocationStatus();
       setTimeout(function () { openSheet(dom.locationSheet); }, 380);
+    });
+    dom.locationSort.addEventListener("click", function (event) {
+      var button = event.target.closest("button[data-sort]");
+      if (!button) return;
+      state.settings.locationSort = button.dataset.sort === "region" ? "region" : "best";
+      saveSettings();
+      renderLocationList(dom.locationSearch.value);
     });
 
     dom.sheetBackdrop.addEventListener("click", closeAllSheets);
@@ -1153,12 +1423,13 @@
 
     document.addEventListener("visibilitychange", function () {
       if (document.visibilityState === "visible" && state.lastUpdated && Date.now() - state.lastUpdated > 10 * 60 * 1000) {
-        loadForecast({ silent: true });
+        refreshAll({ silent: true });
       }
     });
 
     window.addEventListener("online", function () {
-      if (state.error) loadForecast({ silent: true });
+      if (state.error) refreshAll({ silent: true });
+      else if (!state.summarySavedAt || state.summaryError) loadBaySummaries();
     });
   }
 
@@ -1170,7 +1441,7 @@
 
     setInterval(function () {
       if (document.visibilityState === "visible" && state.location) {
-        loadForecast({ silent: true });
+        refreshAll({ silent: true });
       }
     }, REFRESH_MS);
   }

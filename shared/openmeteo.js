@@ -39,6 +39,21 @@
 
   var DAILY = ["sunrise", "sunset"];
 
+  // The bay-wide outlook only needs the variables that feed the score and the
+  // detail sheet. Keeping this list small keeps the 76-point request compact.
+  var BAY_HOURLY = [
+    "temperature_2m",
+    "relative_humidity_2m",
+    "precipitation",
+    "cloud_cover_low",
+    "cloud_cover_mid",
+    "cloud_cover_high",
+    "visibility",
+    "wind_speed_10m",
+    "wind_gusts_10m",
+    "boundary_layer_height"
+  ];
+
   function buildUrl(location, options) {
     options = options || {};
     if (!location || !location.peak || !location.valley) {
@@ -69,9 +84,43 @@
     return API_BASE + "?" + params.join("&");
   }
 
-  async function fetchForecast(location, options) {
+  function buildBayUrl(locations, options) {
     options = options || {};
-    var url = buildUrl(location, options);
+    if (!Array.isArray(locations) || !locations.length) {
+      throw new Error("buildBayUrl needs at least one location");
+    }
+    var lat = [];
+    var lon = [];
+    for (var i = 0; i < locations.length; i++) {
+      var location = locations[i];
+      if (!location || !location.peak || !location.valley) {
+        throw new Error("Every bay location needs peak and valley coordinates");
+      }
+      lat.push(location.peak.lat, location.valley.lat);
+      lon.push(location.peak.lon, location.valley.lon);
+    }
+
+    var forecastHours = options.forecastHours == null ? 80 : options.forecastHours;
+    var timezone = options.timezone || DEFAULT_TIMEZONE;
+    var params = [
+      "latitude=" + encodeURIComponent(lat.join(",")),
+      "longitude=" + encodeURIComponent(lon.join(",")),
+      "hourly=" + encodeURIComponent(BAY_HOURLY.join(",")),
+      "daily=sunrise",
+      "models=ncep_gfs_seamless",
+      "temperature_unit=fahrenheit",
+      "wind_speed_unit=mph",
+      "precipitation_unit=inch",
+      "timezone=" + encodeURIComponent(timezone),
+      "timeformat=unixtime",
+      "forecast_hours=" + forecastHours
+    ];
+    if (options.pastHours !== false) params.push("past_hours=" + (options.pastHours || 3));
+    return API_BASE + "?" + params.join("&");
+  }
+
+  async function requestJson(url, options) {
+    options = options || {};
     var fetchImpl = options.fetchImpl || (typeof fetch !== "undefined" ? fetch : null);
     if (!fetchImpl) throw new Error("No fetch implementation available");
 
@@ -99,6 +148,13 @@
 
     var data = await response.json();
     if (data && data.error) throw new Error(data.reason || "Weather API error");
+    return data;
+  }
+
+  async function fetchForecast(location, options) {
+    options = options || {};
+    var url = buildUrl(location, options);
+    var data = await requestJson(url, options);
 
     var series = Array.isArray(data) ? data : [data];
     if (!series[0] || !series[0].hourly) throw new Error("Weather API returned no hourly data");
@@ -112,12 +168,44 @@
     };
   }
 
+  async function fetchBayForecast(locations, options) {
+    options = options || {};
+    var url = buildBayUrl(locations, options);
+    var data = await requestJson(url, options);
+    var series = Array.isArray(data) ? data : [data];
+    var expected = locations.length * 2;
+    if (series.length < expected) {
+      throw new Error("Weather API returned " + series.length + " of " + expected + " bay points");
+    }
+
+    for (var i = 0; i < expected; i++) {
+      if (!series[i] || !series[i].hourly) {
+        throw new Error("Weather API returned no hourly data for bay point " + i);
+      }
+    }
+
+    return {
+      locations: locations.map(function (location, index) {
+        return {
+          location: location,
+          peak: series[index * 2],
+          valley: series[index * 2 + 1]
+        };
+      }),
+      url: url,
+      fetchedAt: Math.floor(Date.now() / 1000)
+    };
+  }
+
   return {
     API_BASE: API_BASE,
     HOURLY: HOURLY,
+    BAY_HOURLY: BAY_HOURLY,
     DAILY: DAILY,
     DEFAULT_TIMEZONE: DEFAULT_TIMEZONE,
     buildUrl: buildUrl,
-    fetchForecast: fetchForecast
+    buildBayUrl: buildBayUrl,
+    fetchForecast: fetchForecast,
+    fetchBayForecast: fetchBayForecast
   };
 });
