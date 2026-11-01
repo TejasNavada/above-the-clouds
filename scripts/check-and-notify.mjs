@@ -14,7 +14,7 @@
  *   TELEGRAM_CHAT_ID    optional Telegram chat id
  *   ATC_LOCATIONS       comma-separated ids, defaults to boccardo-peak
  *   ATC_APP_URL         link included in the alert
- *   ATC_HORIZON_HOURS   how far ahead to alert, defaults to 30
+ *   ATC_HORIZON_HOURS   how far ahead to alert, defaults to 72
  *   ATC_THRESHOLD       GO score threshold, defaults to 70
  *   ATC_STATE_FILE      defaults to .state/notified.json
  *   ATC_DRY_RUN         set to 1 to print instead of send
@@ -53,7 +53,7 @@ function boundedNumber(value, fallback, min, max) {
 const dryRun = args.includes("--dry-run") || process.env.ATC_DRY_RUN === "1";
 const testMode = args.includes("--test") || process.env.ATC_TEST === "true";
 const explicitLocation = argValue("--location");
-const horizonHours = boundedNumber(process.env.ATC_HORIZON_HOURS, 30, 1, 96);
+const horizonHours = boundedNumber(process.env.ATC_HORIZON_HOURS, 72, 1, 96);
 const threshold = boundedNumber(process.env.ATC_THRESHOLD, 70, 1, 100);
 const stateFile = path.resolve(root, process.env.ATC_STATE_FILE || ".state/notified.json");
 const appUrl = resolveAppUrl();

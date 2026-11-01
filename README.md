@@ -137,9 +137,10 @@ is a good alternative if you already use Telegram and want its push pipeline.
 
 ### Alert behavior
 
-`.github/workflows/notify.yml` runs every 15 minutes on a best-effort schedule.
-It checks every configured peak and sends **at most one combined notification
-per run**:
+`.github/workflows/notify.yml` asks GitHub to run every 15 minutes on a
+best-effort schedule. It checks every configured peak and sends **at most one
+combined notification per run**. The default look-ahead is **72 hours**,
+matching the 3-day outlook in the app:
 
 - All newly eligible peaks are listed together, grouped into **OPEN NOW** and
   **COMING UP**.
@@ -148,10 +149,11 @@ per run**:
   new digest only if another window becomes eligible.
 - Tapping the alert opens the full, ranked Bay-wide picker.
 
-GitHub's scheduler can be a few minutes late. That is expected, and the digest
-is a heads-up rather than a minute-by-minute alarm. GitHub may also pause
-scheduled workflows after 60 days without repository activity; if alerts go
-quiet, open the Actions tab and re-enable the workflow.
+GitHub's scheduler is best-effort and can be delayed by minutes or, under load,
+substantially longer. That is why the alert is a heads-up days ahead rather than
+a minute-by-minute alarm. GitHub may also pause scheduled workflows after 60
+days without repository activity; if alerts go quiet, open the Actions tab and
+re-enable the workflow.
 
 ### Alert configuration
 
@@ -162,7 +164,7 @@ Repository **variables** (Settings → Secrets and variables → Actions → Var
 | `ATC_LOCATIONS` | `boccardo-peak` | Comma-separated location IDs, for example `boccardo-peak,mount-tamalpais` |
 | `ATC_APP_URL` | derived from the repo | Base URL used in alert links |
 | `ATC_THRESHOLD` | `70` | Minimum score for a GO alert, from 1 to 100 |
-| `ATC_HORIZON_HOURS` | `30` | How far ahead to look for an upcoming window (1–96) |
+| `ATC_HORIZON_HOURS` | `72` | How far ahead to look for an upcoming window (1–96) |
 | `NTFY_URL` | `https://ntfy.sh` | Optional self-hosted ntfy server |
 
 Secrets: `NTFY_TOPIC`, optional `NTFY_TOKEN`, optional
@@ -350,8 +352,8 @@ Generated files (`_site/`, `.state/`) and local secrets are gitignored.
   subscribed to in the ntfy app.
 - Use **Send test alert** in the app. If that works, the phone subscription is
   fine and the remaining issue is the workflow configuration.
-- Remember the default horizon is 30 hours. Use the dry-run command with
-  `ATC_HORIZON_HOURS=48` to see farther ahead.
+- Remember the default horizon is 72 hours. The 3-day picker and the alert
+  horizon now cover the same period.
 
 **The widget says NO SIGNAL**
 
