@@ -2,9 +2,9 @@
 
 A phone-first forecast for the Bay Area's best marine-layer mornings. Open the
 app and get an immediate **GO / MAYBE / NO** for a peak, the next sunrise window,
-and the reasons behind the score. A GitHub Action turns good windows into ntfy or
-Telegram alerts, and a Scriptable widget puts the current verdict on your iPhone
-home screen.
+and the reasons behind the score. A free Cloudflare cron triggers a GitHub Action
+that turns good windows into ntfy or Telegram alerts, and a Scriptable widget puts
+the current verdict on your iPhone home screen.
 
 The default peak is **Boccardo Peak** (1,896 ft) above San Jose. The catalog
 includes 38 summits from San Jose to Point Reyes.
@@ -87,8 +87,8 @@ glanceability.
    `https://<username>.github.io/`.
 
 GitHub Pages for a private repository requires a plan that supports it. A
-public repository works on the free plan. The scheduled alert workflow uses only a few
-minutes per month, and scheduled Actions minutes are free on public repositories.
+public repository works on the free plan. The alert workflow uses only a few
+seconds per run, and Actions minutes are free on public repositories.
 
 ---
 
@@ -137,10 +137,10 @@ is a good alternative if you already use Telegram and want its push pipeline.
 
 ### Alert behavior
 
-`.github/workflows/notify.yml` asks GitHub to run every 15 minutes on a
-best-effort schedule. It checks every configured peak and sends **at most one
-combined notification per run**. The default look-ahead is **72 hours**,
-matching the 3-day outlook in the app:
+A free [Cloudflare Worker](./cloudflare/alert-scheduler) dispatches
+`.github/workflows/notify.yml` every 15 minutes. It checks every configured peak
+and sends **at most one combined notification per run**. The default look-ahead
+is **72 hours**, matching the 3-day outlook in the app:
 
 - All newly eligible peaks are listed together, grouped into **OPEN NOW** and
   **COMING UP**.
@@ -149,11 +149,16 @@ matching the 3-day outlook in the app:
   new digest only if another window becomes eligible.
 - Tapping the alert opens the full, ranked Bay-wide picker.
 
-GitHub's scheduler is best-effort and can be delayed by minutes or, under load,
-substantially longer. That is why the alert is a heads-up days ahead rather than
-a minute-by-minute alarm. GitHub may also pause scheduled workflows after 60
-days without repository activity; if alerts go quiet, open the Actions tab and
-re-enable the workflow.
+GitHub's native scheduler is best-effort and, in practice, can skip hours under
+load. This repository therefore does **not** use `on: schedule`. The Cloudflare
+cron is the only trigger, so there is no 60-day scheduled-workflow pause and no
+dependency on GitHub's scheduler. The Worker mints a short-lived GitHub App
+installation token, so there is no personal access token to rotate.
+
+If alerts go quiet, check **Workers & Pages → atc-alert-scheduler →
+Observability** for dispatch errors, then check the repository's **Actions**
+tab. The Worker setup and deployment steps are in
+[`cloudflare/alert-scheduler/README.md`](./cloudflare/alert-scheduler/README.md).
 
 ### Alert configuration
 
@@ -183,6 +188,20 @@ node -e "console.log(require('./locations.json').map(l => l.id).join(','))"
 
 The 15-minute alert job checks each configured peak. If several peaks line up,
 they are combined into one deduplicated digest for that run.
+
+### The 15-minute trigger
+
+`cloudflare/alert-scheduler` is a tiny Worker that dispatches `notify.yml` on a
+`*/15 * * * *` cron. It authenticates as a GitHub App installed on this
+repository, so it uses a short-lived installation token instead of a personal
+access token. The Worker is on Cloudflare's free plan and uses 96 invocations a
+day.
+
+To recreate it in a copy of this repository, follow
+[`cloudflare/alert-scheduler/README.md`](./cloudflare/alert-scheduler/README.md).
+The short version: create a GitHub App with **Actions: Read and write**, install
+it on the repository, create the Worker, add the App ID / installation ID /
+private-key secrets, and set the cron trigger.
 
 To try the notification logic without sending anything:
 

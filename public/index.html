@@ -299,7 +299,7 @@
 
       <div class="settings-group">
         <h3>Alerts</h3>
-        <p class="settings-help">Get a push when a good window is coming — 72 hours ahead by default. The alert is sent by a GitHub Action in your copy of the repo, so you only need to set this up once.</p>
+        <p class="settings-help">Get a push when a good window is coming — 72 hours ahead by default. A free Cloudflare cron triggers the alert job every 15 minutes, so you only need to set this up once.</p>
         <div class="field">
           <label for="ntfyTopic">ntfy topic</label>
           <div class="input-row">
@@ -318,7 +318,7 @@
         </div>
         <div class="setup-note">
           <strong>One-time setup</strong>
-          <p>Add <code>NTFY_TOPIC</code> as a repository secret (or use the Telegram secrets below). The included GitHub Action checks every 15 minutes and sends the alert. See the README for the walkthrough.</p>
+          <p>Add <code>NTFY_TOPIC</code> as a repository secret (or use the Telegram secrets below). The included scheduler checks every 15 minutes and sends the alert. See the README for the walkthrough.</p>
         </div>
         <details class="advanced">
           <summary>Prefer Telegram? <svg><use href="#i-chevron-down"></use></svg></summary>

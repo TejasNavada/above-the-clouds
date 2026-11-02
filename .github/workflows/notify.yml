@@ -1,10 +1,9 @@
 name: Cloud alerts
 
 on:
-  schedule:
-    # GitHub runs scheduled workflows on a best-effort basis; expect a few
-    # minutes of delay. The app rounds to the nearest hour anyway.
-    - cron: "*/15 * * * *"
+  # Triggered every 15 minutes by the Cloudflare Worker in
+  # cloudflare/alert-scheduler. GitHub's native scheduler is best-effort and
+  # was observed skipping hours, so it is intentionally not used here.
   workflow_dispatch:
     inputs:
       test:
