@@ -17,6 +17,9 @@
 
   var DEFAULT_TIMEZONE = "America/Los_Angeles";
   var API_BASE = "https://api.open-meteo.com/v1/gfs";
+  // The browser app can point this at a same-origin/Worker proxy when the
+  // direct Open-Meteo host is unreachable from the user's network.
+  var apiBase = API_BASE;
 
   var HOURLY = [
     "temperature_2m",
@@ -81,7 +84,7 @@
     // A few past hours let the engine look back at recent rain without
     // returning a whole extra day of forecast data.
     if (options.pastHours !== false) params.push("past_hours=" + (options.pastHours || 3));
-    return API_BASE + "?" + params.join("&");
+    return apiBase + "?" + params.join("&");
   }
 
   function buildBayUrl(locations, options) {
@@ -116,7 +119,16 @@
       "forecast_hours=" + forecastHours
     ];
     if (options.pastHours !== false) params.push("past_hours=" + (options.pastHours || 3));
-    return API_BASE + "?" + params.join("&");
+    return apiBase + "?" + params.join("&");
+  }
+
+  function setApiBase(base) {
+    var next = String(base || API_BASE).replace(/\/+$/, "");
+    apiBase = next || API_BASE;
+  }
+
+  function getApiBase() {
+    return apiBase;
   }
 
   async function requestJson(url, options) {
@@ -199,6 +211,8 @@
 
   return {
     API_BASE: API_BASE,
+    setApiBase: setApiBase,
+    getApiBase: getApiBase,
     HOURLY: HOURLY,
     BAY_HOURLY: BAY_HOURLY,
     DAILY: DAILY,

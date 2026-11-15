@@ -28,8 +28,10 @@ includes 38 summits from San Jose to Point Reyes.
 - Includes bay-wide Scriptable widgets in all three home-screen sizes, with
   lock-screen layouts for one peak.
 
-The app calls the free [Open-Meteo](https://open-meteo.com/) API. There is no
-account, analytics, or application server.
+The app calls the free [Open-Meteo](https://open-meteo.com/) API through a thin
+Cloudflare Worker proxy, so it still works on networks that cannot reach
+`api.open-meteo.com` directly. There is no account, analytics, or application
+server. Node scripts and GitHub Actions call Open-Meteo directly.
 
 ---
 

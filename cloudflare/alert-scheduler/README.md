@@ -22,6 +22,12 @@ The Worker does not compute forecasts or send notifications itself. It only
 dispatches the existing, tested workflow. GitHub Actions still owns the
 forecast check, dedupe state, and ntfy/Telegram delivery.
 
+It also exposes `/v1/gfs`, a thin CORS-enabled proxy to
+`https://api.open-meteo.com/v1/gfs`. The PWA uses this route because some
+networks cannot reach `api.open-meteo.com` directly. The proxy caches successful
+responses at the edge for five minutes and times out upstream requests after
+30 seconds.
+
 ## Why a GitHub App instead of a personal access token
 
 A GitHub App installation token is minted on demand, expires after one hour,

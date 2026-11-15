@@ -3,6 +3,10 @@
   "use strict";
 
   var TZ = "America/Los_Angeles";
+  // Open-Meteo is normally fetched directly. Some networks cannot reach
+  // api.open-meteo.com, so route browser requests through the same Cloudflare
+  // Worker that runs the alert cron. Node scripts keep using the direct host.
+  var WEATHER_PROXY = "https://atc-alert-scheduler.tejasnavada2002.workers.dev/v1/gfs";
   var SETTINGS_KEY = "atc:settings:v1";
   var CACHE_KEY = "atc:cache:v1";
   var SUMMARY_KEY = "atc:summaries:v1";
@@ -272,6 +276,9 @@
   document.addEventListener("DOMContentLoaded", init);
 
   function init() {
+    if (window.CloudWeather && CloudWeather.setApiBase) {
+      CloudWeather.setApiBase(WEATHER_PROXY);
+    }
     cacheDom();
     state.settings = loadSettings();
 
@@ -675,7 +682,7 @@
     state.summaryError = null;
     renderLocationStatus();
 
-    state.summaryPromise = CloudWeather.fetchBayForecast(state.locations, { forecastHours: 80 })
+    state.summaryPromise = CloudWeather.fetchBayForecast(state.locations, { forecastHours: 80, timeoutMs: 35000 })
       .then(function (bay) {
         var now = Math.floor(Date.now() / 1000);
         var byLocation = {};

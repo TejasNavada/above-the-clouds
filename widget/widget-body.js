@@ -12,6 +12,13 @@ const APP_URL = "";
 const TIME_ZONE = "America/Los_Angeles";
 const REFRESH_MINUTES = 15;
 
+// Some networks cannot reach api.open-meteo.com directly. Route widget
+// requests through the same Cloudflare Worker that powers the app proxy.
+const WEATHER_PROXY = "https://atc-alert-scheduler.tejasnavada2002.workers.dev/v1/gfs";
+if (typeof CloudWeather !== "undefined" && CloudWeather.setApiBase) {
+  CloudWeather.setApiBase(WEATHER_PROXY);
+}
+
 const COLORS = {
   ink: "#f2f5ff",
   muted: "#9aa8c6",

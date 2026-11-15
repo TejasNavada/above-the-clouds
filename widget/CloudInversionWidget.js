@@ -1530,6 +1530,9 @@ const LOCATIONS = [
 
   var DEFAULT_TIMEZONE = "America/Los_Angeles";
   var API_BASE = "https://api.open-meteo.com/v1/gfs";
+  // The browser app can point this at a same-origin/Worker proxy when the
+  // direct Open-Meteo host is unreachable from the user's network.
+  var apiBase = API_BASE;
 
   var HOURLY = [
     "temperature_2m",
@@ -1594,7 +1597,7 @@ const LOCATIONS = [
     // A few past hours let the engine look back at recent rain without
     // returning a whole extra day of forecast data.
     if (options.pastHours !== false) params.push("past_hours=" + (options.pastHours || 3));
-    return API_BASE + "?" + params.join("&");
+    return apiBase + "?" + params.join("&");
   }
 
   function buildBayUrl(locations, options) {
@@ -1629,7 +1632,16 @@ const LOCATIONS = [
       "forecast_hours=" + forecastHours
     ];
     if (options.pastHours !== false) params.push("past_hours=" + (options.pastHours || 3));
-    return API_BASE + "?" + params.join("&");
+    return apiBase + "?" + params.join("&");
+  }
+
+  function setApiBase(base) {
+    var next = String(base || API_BASE).replace(/\/+$/, "");
+    apiBase = next || API_BASE;
+  }
+
+  function getApiBase() {
+    return apiBase;
   }
 
   async function requestJson(url, options) {
@@ -1712,6 +1724,8 @@ const LOCATIONS = [
 
   return {
     API_BASE: API_BASE,
+    setApiBase: setApiBase,
+    getApiBase: getApiBase,
     HOURLY: HOURLY,
     BAY_HOURLY: BAY_HOURLY,
     DAILY: DAILY,
@@ -1736,6 +1750,13 @@ const LOCATIONS = [
 const APP_URL = "";
 const TIME_ZONE = "America/Los_Angeles";
 const REFRESH_MINUTES = 15;
+
+// Some networks cannot reach api.open-meteo.com directly. Route widget
+// requests through the same Cloudflare Worker that powers the app proxy.
+const WEATHER_PROXY = "https://atc-alert-scheduler.tejasnavada2002.workers.dev/v1/gfs";
+if (typeof CloudWeather !== "undefined" && CloudWeather.setApiBase) {
+  CloudWeather.setApiBase(WEATHER_PROXY);
+}
 
 const COLORS = {
   ink: "#f2f5ff",

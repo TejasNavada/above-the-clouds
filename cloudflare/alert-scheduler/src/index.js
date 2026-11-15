@@ -107,6 +107,37 @@ async function run(env) {
   }
 }
 
+const CORS_HEADERS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type",
+};
+
+async function proxyWeather(request) {
+  const incoming = new URL(request.url);
+  const upstream = new URL("https://api.open-meteo.com" + incoming.pathname);
+  upstream.search = incoming.search;
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 30000);
+  let response;
+  try {
+    response = await fetch(upstream.toString(), {
+      method: "GET",
+      headers: { "User-Agent": "above-the-clouds-pwa" },
+      signal: controller.signal,
+      cf: { cacheTtl: 300, cacheEverything: true },
+    });
+  } finally {
+    clearTimeout(timer);
+  }
+
+  const headers = new Headers(response.headers);
+  for (const [name, value] of Object.entries(CORS_HEADERS)) headers.set(name, value);
+  headers.set("Cache-Control", "public, max-age=300");
+  return new Response(response.body, { status: response.status, headers });
+}
+
 export default {
   async scheduled(controller, env, ctx) {
     ctx.waitUntil(run(env));
@@ -114,6 +145,22 @@ export default {
 
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
+    if (request.method === "OPTIONS") {
+      return new Response(null, { status: 204, headers: CORS_HEADERS });
+    }
+    if (url.pathname === "/v1/gfs") {
+      if (request.method !== "GET") {
+        return new Response("Method not allowed", { status: 405, headers: CORS_HEADERS });
+      }
+      try {
+        return await proxyWeather(request);
+      } catch (error) {
+        return Response.json({ error: true, reason: String(error) }, {
+          status: 502,
+          headers: CORS_HEADERS,
+        });
+      }
+    }
     if (url.pathname === "/run") {
       if (request.method !== "POST") {
         return new Response("POST required", { status: 405 });
