@@ -5,7 +5,7 @@
  */
 "use strict";
 
-var VERSION = "atc-v2";
+var VERSION = "atc-v3";
 var SHELL_CACHE = VERSION + "-shell";
 var RUNTIME_CACHE = VERSION + "-runtime";
 
