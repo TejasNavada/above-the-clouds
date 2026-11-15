@@ -221,6 +221,15 @@ npm run notify:test
 On PowerShell, set environment variables with `$env:ATC_HORIZON_HOURS = "48"`
 before running the command.
 
+If your network cannot reach `api.open-meteo.com` directly, route local checks
+through the Worker proxy:
+
+```bash
+ATC_WEATHER_BASE=https://atc-alert-scheduler.tejasnavada2002.workers.dev/v1/gfs npm test
+```
+
+The deployed PWA and iPhone widget already use that proxy automatically.
+
 ---
 
 ## iPhone home-screen widget (Scriptable)

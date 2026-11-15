@@ -17,6 +17,7 @@ import { fileURLToPath } from "node:url";
 const require = createRequire(import.meta.url);
 const CloudInversion = require("../shared/conditions.js");
 const CloudWeather = require("../shared/openmeteo.js");
+if (process.env.ATC_WEATHER_BASE) CloudWeather.setApiBase(process.env.ATC_WEATHER_BASE);
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, "..");

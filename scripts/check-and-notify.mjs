@@ -16,6 +16,7 @@
  *   ATC_APP_URL         link included in the alert
  *   ATC_HORIZON_HOURS   how far ahead to alert, defaults to 72
  *   ATC_THRESHOLD       GO score threshold, defaults to 70
+ *   ATC_WEATHER_BASE    optional Open-Meteo proxy base URL
  *   ATC_STATE_FILE      defaults to .state/notified.json
  *   ATC_DRY_RUN         set to 1 to print instead of send
  *   ATC_TEST            set to true to send one test alert and exit
@@ -32,6 +33,7 @@ import { fileURLToPath } from "node:url";
 const require = createRequire(import.meta.url);
 const CloudInversion = require("../shared/conditions.js");
 const CloudWeather = require("../shared/openmeteo.js");
+if (process.env.ATC_WEATHER_BASE) CloudWeather.setApiBase(process.env.ATC_WEATHER_BASE);
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, "..");
